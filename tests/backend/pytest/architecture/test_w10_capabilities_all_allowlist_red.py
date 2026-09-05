@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import tomllib
+from datetime import date
 from pathlib import Path
 
 import pytest
@@ -41,3 +42,4 @@ def test_capabilities_public_exports_allowlist_has_minimal_schema() -> None:
     allowlist = tomllib.loads(ALLOWLIST_PATH.read_text(encoding="utf-8"))
     for entry in allowlist["public_names"]:
         assert set(entry) == {"name", "expires_at"}, entry
+        assert date.fromisoformat(entry["expires_at"]) >= date.today(), entry

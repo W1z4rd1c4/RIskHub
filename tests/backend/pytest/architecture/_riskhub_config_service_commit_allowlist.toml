@@ -1,11 +1,2 @@
-[[allowlist]]
-file = "backend/app/services/_riskhub_config/lifecycle.py"
-line = 103
-rationale = "RiskHub config lifecycle owns terminal config mutation transactions for endpoint adapters."
-expires_at = "2026-09-01"
-
-[[allowlist]]
-file = "backend/app/services/_riskhub_config/lifecycle.py"
-line = 161
-rationale = "RiskHub config no-op lifecycle helper is a terminal endpoint service entrypoint."
-expires_at = "2026-09-01"
+# Reviewed 2026-09-06: lifecycle commits now use commit_service_boundary.
+allowlist = []

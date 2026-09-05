@@ -41,11 +41,3 @@ rationale = "Entity mutation lifecycle direct-apply paths need archive/update pa
 [[allow]]
 file = "backend/app/services/_entity_mutation_lifecycle/archive_plans.py"
 rationale = "Archive plan commit handling is approval-sensitive and remains separately tracked."
-
-[[allow]]
-file = "backend/app/services/_vendor_governance/lifecycle.py"
-rationale = "Vendor governance lifecycle has multiple business transaction boundaries."
-
-[[allow]]
-file = "backend/app/services/_riskhub_config/lifecycle.py"
-rationale = "Existing W12 ratchet owns riskhub config commit migration."

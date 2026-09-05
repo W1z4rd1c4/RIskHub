@@ -1,11 +1,2 @@
-[[allowlist]]
-file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 179
-rationale = "Public Vendor archive service owns the atomic direct-archive, governance-version, and audit transaction; governed submissions commit separately."
-expires_at = "2026-09-01"
-
-[[allowlist]]
-file = "backend/app/services/_vendor_governance/lifecycle.py"
-line = 200
-rationale = "Public Vendor restore service owns the atomic restore, governance-version, and audit transaction."
-expires_at = "2026-09-01"
+# Reviewed 2026-09-06: lifecycle commits now use commit_service_boundary.
+allowlist = []

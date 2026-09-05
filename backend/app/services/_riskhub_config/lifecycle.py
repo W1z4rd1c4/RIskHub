@@ -10,6 +10,7 @@ from app.core.activity_logger import log_activity
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.models.user import User
 from app.services._config.lookup import clear_config_cache
+from app.services.transaction_boundary import commit_service_boundary
 
 ConfigLifecycleStatus = Literal["created", "updated", "deleted", "restored", "blocked"]
 ConfigLogActivity = Callable[..., Awaitable[Any]]
@@ -100,7 +101,7 @@ async def _run_config_lifecycle(
         actor=actor,
         **audit_plan.as_log_kwargs(),
     )
-    await db.commit()
+    await commit_service_boundary(db, boundary="riskhub_config_lifecycle")
     clear_config_cache()
     if refresh_entity and entity is not None:
         await db.refresh(entity)
@@ -158,7 +159,7 @@ async def run_config_noop_update(
     entity: object | None = None,
     refresh_entity: bool = False,
 ) -> ConfigLifecycleOutcome:
-    await db.commit()
+    await commit_service_boundary(db, boundary="riskhub_config_noop_update")
     clear_config_cache()
     if refresh_entity and entity is not None:
         await db.refresh(entity)

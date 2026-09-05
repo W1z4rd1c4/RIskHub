@@ -1,107 +1,108 @@
+# Reviewed 2026-09-06 by RiskHub Maintainer; rationale: architecture/README.md.
 [[public_names]]
 name = "Capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "approval_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "approval_scenario_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "asset_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "asset_vendor_link_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "build_me_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "can_view_loaded_vendor"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "can_view_vendor_link"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "control_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "department_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "has_capability"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "issue_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "kri_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "preload_issue_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "process_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "process_vendor_link_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "risk_asset_link_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "risk_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "risk_process_link_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "risk_type_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "threat_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "threat_risk_link_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "require_capability"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "role_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "vendor_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "vendor_contract_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"
 
 [[public_names]]
 name = "vendor_sub_outsourcing_capabilities"
-expires_at = "2026-09-01"
+expires_at = "2026-12-05"

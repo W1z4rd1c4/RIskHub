@@ -176,7 +176,7 @@ async def archive_vendor_detail(
         changes=changes,
         log_activity_func=log_activity,
     )
-    await db.commit()
+    await commit_service_boundary(db, boundary="vendor_archive")
     return None
 
 
@@ -197,7 +197,7 @@ async def restore_vendor_detail(
         changes=changes,
         log_activity_func=log_activity,
     )
-    await db.commit()
+    await commit_service_boundary(db, boundary="vendor_restore")
     await db.refresh(vendor)
 
     refreshed = await load_vendor_with_deps(db, vendor.id)

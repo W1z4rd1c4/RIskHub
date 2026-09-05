@@ -1,15 +1,84 @@
 import pytest
-from httpx import AsyncClient
-from sqlalchemy import select
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.core.user_query_options import user_selectinload_options
-from app.models import Asset, Department, Permission, Process, Risk, Role, RolePermission, User, Vendor, VendorRiskLink
+from app.models import (
+    Asset,
+    Department,
+    Permission,
+    Process,
+    Risk,
+    Role,
+    RolePermission,
+    User,
+    Vendor,
+    VendorRiskLink,
+)
+from app.models.activity_log import ActivityLog
 from app.models.user import AccessScope
 from app.schemas.vendor import VendorCreate, VendorUpdate
 from app.services._register_listings import vendors as vendor_listing
-from app.services._vendor_governance.lifecycle import archive_vendor_detail, create_vendor_detail, update_vendor_detail
+from app.services._vendor_governance.lifecycle import (
+    archive_vendor_detail,
+    create_vendor_detail,
+    restore_vendor_detail,
+    update_vendor_detail,
+)
+from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("restore", [False, True])
+async def test_vendor_archive_restore_commit_failure_rolls_back_before_returning(
+    db_session,
+    test_department,
+    test_user,
+    monkeypatch,
+    restore,
+):
+    vendor = Vendor(
+        name="Commit failure vendor",
+        process="IT",
+        department_id=test_department.id,
+        outsourcing_owner_user_id=test_user.id,
+        vendor_type="ict",
+        risk_score_1_5=3,
+        supports_important_core_insurance_function=False,
+        dora_relevant=False,
+        is_significant_vendor=False,
+        has_alternative_providers=False,
+        status="active",
+        is_archived=restore,
+    )
+    db_session.add(vendor)
+    await db_session.commit()
+    await db_session.refresh(vendor)
+    audit_count = await db_session.scalar(select(func.count()).select_from(ActivityLog))
+    original_version = vendor.governance_version
+    failure = RuntimeError("commit unavailable")
+    rollback_calls = 0
+    original_rollback = db_session.rollback
+
+    async def fail_commit():
+        raise failure
+
+    async def rollback():
+        nonlocal rollback_calls
+        rollback_calls += 1
+        await original_rollback()
+
+    monkeypatch.setattr(db_session, "commit", fail_commit)
+    monkeypatch.setattr(db_session, "rollback", rollback)
+    mutation = restore_vendor_detail if restore else archive_vendor_detail
+    with pytest.raises(RuntimeError) as raised:
+        await mutation(db=db_session, vendor_id=vendor.id, current_user=test_user)
+    assert raised.value is failure
+    assert rollback_calls == 1
+    await db_session.refresh(vendor)
+    assert vendor.is_archived is restore
+    assert vendor.governance_version == original_version
+    assert await db_session.scalar(select(func.count()).select_from(ActivityLog)) == audit_count
 
 
 async def _grant(db_session: AsyncSession, role: Role, resource: str, action: str) -> None:

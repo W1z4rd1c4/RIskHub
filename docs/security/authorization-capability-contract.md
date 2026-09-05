@@ -8,6 +8,10 @@ Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
 
+## Architecture exception review
+
+2026-09-06: Architecture exception review routes RiskHub configuration and Vendor archive/restore commits through the shared rollback boundary. Mutation plus audit remain atomic; authorization guards, row visibility, capability exports, and permission semantics are unchanged. The existing four-module auth baseline and 27 public capability exports were reviewed and renewed through 2026-12-05.
+
 ## Purpose
 
 RiskHub authorization is a business-policy contract, not only a set of route
