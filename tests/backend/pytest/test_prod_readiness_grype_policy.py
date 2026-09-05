@@ -395,7 +395,7 @@ def test_repository_grype_policy_example_is_complete_and_valid(tmp_path: Path) -
 
     text = GRYPE_IGNORE.read_text(encoding="utf-8")
     example_block = text.split("# Example:\n", maxsplit=1)[1].split(
-        "\n\nignore:\n", maxsplit=1
+        "\n\nignore:", maxsplit=1
     )[0]
     example = "\n".join(
         line.removeprefix("# ") for line in example_block.splitlines()
@@ -406,26 +406,8 @@ def test_repository_grype_policy_example_is_complete_and_valid(tmp_path: Path) -
     validate_grype_policy(policy, today=date(2026, 8, 3))
 
 
-def test_repository_grype_policy_has_only_the_two_exact_openssl_acceptances() -> None:
-    text = GRYPE_IGNORE.read_text(encoding="utf-8")
-    active_policy = "\n".join(
-        line for line in text.splitlines() if not line.startswith("#")
-    )
+def test_repository_grype_policy_has_no_runtime_acceptances() -> None:
+    import yaml
 
-    assert active_policy.count("  - vulnerability: CVE-2026-14456") == 2
-    assert "CVE-2026-15308" not in active_policy
-    assert "CVE-2026-11940" not in active_policy
-    assert "CVE-2026-11972" not in active_policy
-    for package_name in ("libcrypto3", "libssl3"):
-        assert active_policy.count(f"      name: {package_name}") == 1
-    for selector in (
-        "    namespace: nvd:cpe\n",
-        "    fix-state: unknown\n",
-        "    match-type: cpe-match\n",
-        "    expires-on: 2026-09-30\n",
-        "      version: 3.5.7-r0\n",
-        "      type: apk\n",
-        "      location: /lib/apk/db/installed\n",
-        "      upstream-name: openssl\n",
-    ):
-        assert active_policy.count(selector.rstrip()) == 2
+    policy = yaml.safe_load(GRYPE_IGNORE.read_text(encoding="utf-8"))
+    assert policy == {"ignore": []}

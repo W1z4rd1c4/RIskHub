@@ -26,28 +26,4 @@
 #       location: /usr/local/bin/python3.13
 #       upstream-name: python
 
-ignore:
-  - vulnerability: CVE-2026-14456
-    reason: "Owner: Platform / W1z4rd1c4. Decision: time-bound acceptance for the OpenSSL QUIC server pending-channel memory-exhaustion finding. Scanner evidence: Grype v0.110.0 reports one High nvd:cpe cpe-match for libcrypto3 3.5.7-r0 at /lib/apk/db/installed, upstream package openssl, with unknown fix state. No-fix proof: the OpenSSL security advisory of 2026-08-13 says 3.5 users should upgrade to 3.5.8 once released and that no new release is being issued at this time. Reachability: RiskHub has no QUIC listener, HTTP/3, aioquic, SSL_accept, or OpenSSL QUIC API use in backend application code, scripts, or requirements. Exit: upgrade to an Alpine package containing OpenSSL 3.5.8 or the authoritative backport, rebuild and scan, then remove this rule."
-    namespace: nvd:cpe
-    fix-state: unknown
-    match-type: cpe-match
-    expires-on: 2026-09-30
-    package:
-      name: libcrypto3
-      version: 3.5.7-r0
-      type: apk
-      location: /lib/apk/db/installed
-      upstream-name: openssl
-  - vulnerability: CVE-2026-14456
-    reason: "Owner: Platform / W1z4rd1c4. Decision: time-bound acceptance for the OpenSSL QUIC server pending-channel memory-exhaustion finding. Scanner evidence: Grype v0.110.0 reports one High nvd:cpe cpe-match for libssl3 3.5.7-r0 at /lib/apk/db/installed, upstream package openssl, with unknown fix state. No-fix proof: the OpenSSL security advisory of 2026-08-13 says 3.5 users should upgrade to 3.5.8 once released and that no new release is being issued at this time. Reachability: RiskHub has no QUIC listener, HTTP/3, aioquic, SSL_accept, or OpenSSL QUIC API use in backend application code, scripts, or requirements. Exit: upgrade to an Alpine package containing OpenSSL 3.5.8 or the authoritative backport, rebuild and scan, then remove this rule."
-    namespace: nvd:cpe
-    fix-state: unknown
-    match-type: cpe-match
-    expires-on: 2026-09-30
-    package:
-      name: libssl3
-      version: 3.5.7-r0
-      type: apk
-      location: /lib/apk/db/installed
-      upstream-name: openssl
+ignore: []

@@ -1016,17 +1016,9 @@ def test_prod_readiness_detached_tree_gitleaks_scan_uses_no_git_mode_and_fails_c
     assert scan.required is True
 
 
-def test_grype_policy_tracks_openssl_357_r0_cpe_acceptances() -> None:
-    text = GRYPE_IGNORE.read_text(encoding="utf-8")
-    active_policy = "\n".join(
-        line for line in text.splitlines() if not line.startswith("#")
-    )
-
-    assert active_policy.count("CVE-2026-14456") == 2
-    assert "libcrypto3" in active_policy
-    assert "libssl3" in active_policy
-    assert active_policy.count("version: 3.5.7-r0") == 2
-    assert active_policy.count("expires-on: 2026-09-30") == 2
+def test_grype_policy_has_no_runtime_acceptances() -> None:
+    policy = yaml.safe_load(GRYPE_IGNORE.read_text(encoding="utf-8"))
+    assert policy == {"ignore": []}
 
 
 def test_prod_readiness_phase_plan_restores_negative_probes_and_runtime_verification() -> (
