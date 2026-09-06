@@ -7,6 +7,8 @@ contains it. It does not assign live work or determine whether an issue, pull
 request, or project item is open. See
 [`docs/DOCUMENTATION_OWNERSHIP.md`](../../docs/DOCUMENTATION_OWNERSHIP.md).
 
+Tracked file counts refreshed from `git ls-files` on 2026-09-06.
+
 ## Top-Level Layout
 
 - `backend/` - FastAPI API, domain services, Alembic migrations, pytest suites
@@ -24,17 +26,17 @@ request, or project item is open. See
 - `backend/app/db/session.py` - engine/sessionmaker lifecycle + `get_db` dependency (sessionmaker stored on `app.state`)
 
 ### Primary subdirectories
-- `backend/app/api/v1/endpoints/` - 166 Python modules/packages (measured git-tracked `*.py` snapshot; extensively split into subrouters for maintainability)
+- `backend/app/api/v1/endpoints/` - 167 Python modules/packages (measured git-tracked `*.py` snapshot; extensively split into subrouters for maintainability)
 - `backend/app/models/` - 34 model modules (measured git-tracked `*.py` snapshot)
-- `backend/app/schemas/` - 32 schema modules (measured git-tracked `*.py` snapshot)
-- `backend/app/services/` - 369 Python modules (measured repository `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_governed_mutations`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
+- `backend/app/schemas/` - 33 schema modules (measured git-tracked `*.py` snapshot)
+- `backend/app/services/` - 370 Python modules (measured repository `*.py` snapshot; business services + internal helper packages such as `_approval_queue`, `_governed_mutations`, `_issue_register`, `_vendor_links`, `_admin_telemetry`, `_issue_workflow`, `_kri_history`, `_vendor_workflow`, `_control_execution`, `_access_workflow`, `_riskhub_config`, `_orphaned_items`, `_quarterly_comparison`, `_risk_questionnaires`, `_auth_session_workflow`, `_graph_directory`, `_authorization_capabilities`, and `_identity_access_lifecycle`)
 - `backend/app/core/` - configuration facade + segmented settings package, auth, permissions, logging, scheduler
 - `backend/app/middleware/` - 11 Python modules (measured git-tracked `*.py` snapshot; security/logging/language/rate-limit middleware with facade-preserving splits)
 - `backend/app/integrations/` - reserved integration package and vendor-signal package docs; current directory/Graph behavior lives in service-layer adapters
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 502 tracked test files (464 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 508 tracked test files (470 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -43,8 +45,8 @@ request, or project item is open. See
 - `frontend/src/App.tsx` - provider composition and route tree
 
 ### Primary subdirectories
-- `frontend/src/pages/` - 239 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
-- `frontend/src/components/` - 320 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
+- `frontend/src/pages/` - 242 tracked files (measured repository snapshot; route-level pages + colocated helpers/tests and shared detail/admin/user workflow modules)
+- `frontend/src/components/` - 324 tracked files (measured repository snapshot; components + tests, including split linking, remediation, questionnaire workflow state, governance, dashboard, KRI modal, and control-loading-overlay modules)
 - `frontend/src/services/` - API client, auth transport, session state packages, domain service wrappers, and split runtime schema modules
 - `frontend/src/contexts/` - auth/theme/filter context providers
 - `frontend/src/authz/` - authz policy derivation hooks
@@ -53,7 +55,7 @@ request, or project item is open. See
 - `frontend/src/i18n/` - locale resources and typed translation hooks
 - `frontend/scripts/runtime/` - component-scoped frontend runtime entrypoints (`dev`, `test`, `prod`)
 - `tests/frontend/unit/src/test/` - MSW handlers and test utilities
-- `tests/frontend/e2e/` - 76 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
+- `tests/frontend/e2e/` - 79 E2E specs (measured repository snapshot; domain-focused test suites plus setup/helpers/fixtures and the dialog render-site harness)
 
 ## Planning and Documentation Structure
 

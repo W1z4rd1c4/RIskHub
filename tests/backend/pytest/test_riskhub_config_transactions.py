@@ -1,4 +1,8 @@
 import pytest
+from httpx import AsyncClient
+from sqlalchemy import delete, func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.models import ApprovalScenario, GlobalConfig
 from app.models.activity_log import ActivityAction, ActivityEntityType, ActivityLog
 from app.services._riskhub_config.approval_scenario_roles import (
@@ -11,9 +15,6 @@ from app.services._riskhub_config.lifecycle import (
     run_config_noop_update,
     run_config_update,
 )
-from httpx import AsyncClient
-from sqlalchemy import delete, func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.asyncio

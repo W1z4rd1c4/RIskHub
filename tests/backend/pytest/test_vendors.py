@@ -1,4 +1,8 @@
 import pytest
+from httpx import AsyncClient
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
 from app.api.v1.endpoints.vendors import crud as vendor_crud
 from app.core.user_query_options import user_selectinload_options
 from app.models import (
@@ -23,9 +27,6 @@ from app.services._vendor_governance.lifecycle import (
     restore_vendor_detail,
     update_vendor_detail,
 )
-from httpx import AsyncClient
-from sqlalchemy import func, select
-from sqlalchemy.ext.asyncio import AsyncSession
 
 
 @pytest.mark.asyncio
