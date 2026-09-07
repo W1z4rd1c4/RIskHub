@@ -264,12 +264,12 @@ async def test_installation_binding_requires_explicit_establishment(db_session):
 
 @pytest.mark.asyncio
 async def test_installation_binding_is_idempotent_and_rejects_tenant_drift(db_session):
+    from app.models import InstallationIdentity
     from app.services.identity_installation import (
         IdentityBindingError,
         establish_installation_binding,
         validate_installation_binding,
     )
-    from app.models import InstallationIdentity
 
     settings = identity_settings()
     created = await establish_installation_binding(
@@ -315,8 +315,8 @@ async def test_local_binding_refuses_populated_database(db_session, test_user):
 
 @pytest.mark.asyncio
 async def test_binding_dry_run_does_not_write(db_session):
-    from app.services.identity_installation import establish_installation_binding
     from app.models import InstallationIdentity
+    from app.services.identity_installation import establish_installation_binding
 
     await establish_installation_binding(
         db_session, settings=identity_settings(), source="pytest", dry_run=True
@@ -433,9 +433,10 @@ async def test_admin_capabilities_report_last_admin_and_local_suspension(
 
 
 def test_reserved_auth_schemas_and_frontend_types_have_one_source():
-    from scripts.export_local_auth_contract import documents
-    from app.schemas.local_auth import LocalAuthChallenge
     from pydantic import ValidationError
+
+    from app.schemas.local_auth import LocalAuthChallenge
+    from scripts.export_local_auth_contract import documents
 
     for path, expected in documents().items():
         assert path.read_text() == expected, f"Regenerate {path}"
@@ -449,6 +450,7 @@ def test_reserved_auth_schemas_and_frontend_types_have_one_source():
 async def test_startup_unbound_fails_before_runtime_services(async_engine, monkeypatch):
     from fastapi import FastAPI
     from sqlalchemy.ext.asyncio import async_sessionmaker
+
     from app import main
     from app.services.identity_installation import IdentityBindingError
 
@@ -465,11 +467,12 @@ async def test_startup_unbound_fails_before_runtime_services(async_engine, monke
 
 
 def test_additive_migration_backfill_preserves_inactivity_and_user_ids():
+    import importlib.util
+    from pathlib import Path
+
     from alembic.migration import MigrationContext
     from alembic.operations import Operations
     from sqlalchemy import create_engine, text
-    from pathlib import Path
-    import importlib.util
 
     path = (
         Path(__file__).resolve().parents[3]
@@ -484,12 +487,15 @@ def test_additive_migration_backfill_preserves_inactivity_and_user_ids():
     with engine.begin() as conn:
         conn.execute(
             text(
-                "CREATE TABLE users (id INTEGER PRIMARY KEY, is_active BOOLEAN NOT NULL, external_id TEXT, deprovision_reason TEXT)"
+                "CREATE TABLE users (id INTEGER PRIMARY KEY, is_active BOOLEAN NOT NULL, "
+                "external_id TEXT, deprovision_reason TEXT)"
             )
         )
         conn.execute(
             text(
-                "INSERT INTO users VALUES (10, true, 'oid-active', NULL), (20, false, 'oid-manual', NULL), (30, false, 'oid-auto', 'missing'), (40, false, NULL, 'missing')"
+                "INSERT INTO users VALUES (10, true, 'oid-active', NULL), "
+                "(20, false, 'oid-manual', NULL), (30, false, 'oid-auto', 'missing'), "
+                "(40, false, NULL, 'missing')"
             )
         )
         conn.execute(
@@ -632,3 +638,29 @@ async def test_fresh_explicit_oid_bootstrap_commits_the_new_identity(
     ).scalar_one()
     assert user.email == "fresh@example.com"
     assert user.hashed_password is None
+
+
+@pytest.mark.asyncio
+async def test_last_platform_admin_demotion_uses_conflict_even_without_cro(
+    db_session, client_factory, test_user, test_user_employee,
+):
+    actor = User(
+        name="Scoped lifecycle operator",
+        email="scoped-lifecycle@example.com",
+        role_id=test_user.role_id,
+        access_scope=AccessScope.DEPARTMENT,
+        is_active=True,
+    )
+    db_session.add(actor)
+    await db_session.commit()
+    original_role = test_user.role_id
+    async with client_factory(
+        user=actor, settings=identity_settings(mock_auth_enabled=True),
+    ) as client:
+        response = await client.patch(
+            f"/api/v1/users/{test_user.id}",
+            json={"role_id": test_user_employee.role_id},
+        )
+    assert response.status_code == 409, response.text
+    await db_session.refresh(test_user)
+    assert test_user.role_id == original_role

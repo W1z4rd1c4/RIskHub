@@ -60,7 +60,7 @@ def documents() -> dict[Path, str]:
         ts += f"export type {name} = {typescript_type(schema)};\n\n"
     return {
         ROOT / "docs/security/identity-local-auth.openapi.json": json.dumps(spec, indent=2, sort_keys=True) + "\n",
-        ROOT / "frontend/src/types/localAuth.generated.ts": ts,
+        ROOT / "frontend/src/types/localAuth.generated.d.ts": ts,
     }
 
 

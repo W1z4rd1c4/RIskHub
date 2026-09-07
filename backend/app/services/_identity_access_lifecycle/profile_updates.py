@@ -136,6 +136,7 @@ async def update_user_profile(
     ensure_directory_reenable_allowed(user=user, update_data=update_data)
 
     removes_ciso_stewardship = False
+    new_role = None
     if "role_id" in update_data:
         new_role_id = update_data["role_id"]
         if new_role_id != user.role_id:
@@ -154,15 +155,16 @@ async def update_user_profile(
                 user=user,
                 new_role=new_role,
             )
-            await ensure_role_change_keeps_privileged_access(
-                db,
-                current_user=current_user,
-                user=user,
-                new_role=new_role,
-            )
 
     prepare_manual_activity_update(user=user, update_data=update_data, settings=settings)
     await ensure_platform_admin_survives(db, user=user, update_data=update_data, settings=settings)
+    if new_role is not None:
+        await ensure_role_change_keeps_privileged_access(
+            db,
+            current_user=current_user,
+            user=user,
+            new_role=new_role,
+        )
 
     extra_changes: dict[str, dict[str, object]] = {}
     if password_hash is not None:
