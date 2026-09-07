@@ -6,19 +6,19 @@ pytest-asyncio>=0.23.0
 pytest-cov>=4.1.0
 pytest-timeout>=2.3.1
 freezegun==1.5.*
-pytest-postgresql==6.*
-syrupy==5.0.*
+pytest-postgresql==9.*
+syrupy==6.0.*
 aiosqlite>=0.20.0
 fakeredis>=2.31.0
-sqlalchemy-utils>=0.41,<0.42
+sqlalchemy-utils>=0.42.1,<0.43
 testcontainers[redis]>=4.8.0
 
 # Security/tooling
-ruff==0.6.9
+ruff==0.16.5
 bandit>=1.7.8
 mypy>=1.18.0
 pre-commit>=3.7.0
-pip-audit==2.10.0
+pip-audit==2.10.1
 
 # Data migration helpers
 openpyxl>=3.1.0
