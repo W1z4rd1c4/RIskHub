@@ -1,0 +1,1449 @@
+{
+  "components": {
+    "schemas": {
+      "AcceptedResponse": {
+        "properties": {
+          "status": {
+            "const": "accepted",
+            "default": "accepted",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "AcceptedResponse",
+        "type": "object"
+      },
+      "AccessScopeEnum": {
+        "description": "Access scope for user data visibility.",
+        "enum": [
+          "global",
+          "department",
+          "manager"
+        ],
+        "title": "AccessScopeEnum",
+        "type": "string"
+      },
+      "ActionProofResponse": {
+        "properties": {
+          "expires_in": {
+            "const": 300,
+            "default": 300,
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "proof": {
+            "minLength": 1,
+            "title": "Proof",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proof"
+        ],
+        "title": "ActionProofResponse",
+        "type": "object"
+      },
+      "AssistedRecoveryRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "incident_reference": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Incident Reference",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "factor_recovery",
+              "credential_and_factor_recovery",
+              "verified_address_recovery"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          },
+          "recent_auth_proof": {
+            "format": "password",
+            "title": "Recent Auth Proof",
+            "type": "string",
+            "writeOnly": true
+          },
+          "verification_method": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Verification Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recent_auth_proof",
+          "incident_reference",
+          "verification_method",
+          "reason",
+          "operation"
+        ],
+        "title": "AssistedRecoveryRequest",
+        "type": "object"
+      },
+      "ChallengeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "challenge": {
+            "format": "password",
+            "title": "Challenge",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "challenge"
+        ],
+        "title": "ChallengeRequest",
+        "type": "object"
+      },
+      "CompletedResponse": {
+        "properties": {
+          "reauthentication_required": {
+            "default": true,
+            "title": "Reauthentication Required",
+            "type": "boolean"
+          },
+          "status": {
+            "const": "completed",
+            "default": "completed",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "title": "CompletedResponse",
+        "type": "object"
+      },
+      "EmailChangeCompleteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "grant": {
+            "format": "password",
+            "title": "Grant",
+            "type": "string",
+            "writeOnly": true
+          },
+          "recent_auth_proof": {
+            "format": "password",
+            "title": "Recent Auth Proof",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "recent_auth_proof",
+          "grant"
+        ],
+        "title": "EmailChangeCompleteRequest",
+        "type": "object"
+      },
+      "EmailChangeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "new_email": {
+            "format": "email",
+            "title": "New Email",
+            "type": "string"
+          },
+          "recent_auth_proof": {
+            "format": "password",
+            "title": "Recent Auth Proof",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "recent_auth_proof",
+          "new_email"
+        ],
+        "title": "EmailChangeRequest",
+        "type": "object"
+      },
+      "EnrollmentStartRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "grant": {
+            "format": "password",
+            "title": "Grant",
+            "type": "string",
+            "writeOnly": true
+          },
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "grant",
+          "password"
+        ],
+        "title": "EnrollmentStartRequest",
+        "type": "object"
+      },
+      "FactorEnrollmentResponse": {
+        "properties": {
+          "recovery_codes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Recovery Codes",
+            "type": "array"
+          },
+          "status": {
+            "const": "enrolled",
+            "default": "enrolled",
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recovery_codes"
+        ],
+        "title": "FactorEnrollmentResponse",
+        "type": "object"
+      },
+      "FactorReplacementRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "recent_auth_proof": {
+            "format": "password",
+            "title": "Recent Auth Proof",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "recent_auth_proof"
+        ],
+        "title": "FactorReplacementRequest",
+        "type": "object"
+      },
+      "FactorSetupResponse": {
+        "properties": {
+          "challenge": {
+            "title": "Challenge",
+            "type": "string"
+          },
+          "expires_in": {
+            "const": 300,
+            "default": 300,
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "provisioning_uri": {
+            "title": "Provisioning Uri",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge",
+          "provisioning_uri"
+        ],
+        "title": "FactorSetupResponse",
+        "type": "object"
+      },
+      "FactorVerifyRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "challenge": {
+            "format": "password",
+            "title": "Challenge",
+            "type": "string",
+            "writeOnly": true
+          },
+          "code": {
+            "format": "password",
+            "title": "Code",
+            "type": "string",
+            "writeOnly": true
+          },
+          "method": {
+            "default": "totp",
+            "enum": [
+              "totp",
+              "recovery_code"
+            ],
+            "title": "Method",
+            "type": "string"
+          }
+        },
+        "required": [
+          "challenge",
+          "code"
+        ],
+        "title": "FactorVerifyRequest",
+        "type": "object"
+      },
+      "InvitationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "department_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Department Id"
+          },
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          },
+          "manager_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Manager Id"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "role_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Role Id"
+          }
+        },
+        "required": [
+          "email",
+          "name"
+        ],
+        "title": "InvitationRequest",
+        "type": "object"
+      },
+      "InvitationResponse": {
+        "properties": {
+          "delivery_status": {
+            "enum": [
+              "pending",
+              "sent",
+              "failed"
+            ],
+            "title": "Delivery Status",
+            "type": "string"
+          },
+          "enrollment_state": {
+            "const": "invited",
+            "default": "invited",
+            "title": "Enrollment State",
+            "type": "string"
+          },
+          "user_id": {
+            "exclusiveMinimum": 0,
+            "title": "User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "user_id",
+          "delivery_status"
+        ],
+        "title": "InvitationResponse",
+        "type": "object"
+      },
+      "LocalAuthChallenge": {
+        "additionalProperties": false,
+        "properties": {
+          "challenge": {
+            "minLength": 1,
+            "title": "Challenge",
+            "type": "string"
+          },
+          "expires_in": {
+            "const": 300,
+            "default": 300,
+            "title": "Expires In",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "mfa_required",
+              "enrollment_required"
+            ],
+            "title": "Status",
+            "type": "string"
+          }
+        },
+        "required": [
+          "status",
+          "challenge"
+        ],
+        "title": "LocalAuthChallenge",
+        "type": "object"
+      },
+      "MeCapabilities": {
+        "description": "Backend-authoritative shell and route-gate capabilities for the current user.",
+        "properties": {
+          "can_manage_access": {
+            "default": false,
+            "title": "Can Manage Access",
+            "type": "boolean"
+          },
+          "can_read_controls": {
+            "default": false,
+            "title": "Can Read Controls",
+            "type": "boolean"
+          },
+          "can_read_departments": {
+            "default": false,
+            "title": "Can Read Departments",
+            "type": "boolean"
+          },
+          "can_read_risks": {
+            "default": false,
+            "title": "Can Read Risks",
+            "type": "boolean"
+          },
+          "can_read_vendors": {
+            "default": false,
+            "title": "Can Read Vendors",
+            "type": "boolean"
+          },
+          "can_view_access_users": {
+            "default": false,
+            "title": "Can View Access Users",
+            "type": "boolean"
+          },
+          "can_view_activity_log": {
+            "default": false,
+            "title": "Can View Activity Log",
+            "type": "boolean"
+          },
+          "can_view_admin_console": {
+            "default": false,
+            "title": "Can View Admin Console",
+            "type": "boolean"
+          },
+          "can_view_approvals": {
+            "default": false,
+            "title": "Can View Approvals",
+            "type": "boolean"
+          },
+          "can_view_committee": {
+            "default": false,
+            "title": "Can View Committee",
+            "type": "boolean"
+          },
+          "can_view_department_access": {
+            "default": false,
+            "title": "Can View Department Access",
+            "type": "boolean"
+          },
+          "can_view_department_access_users": {
+            "default": false,
+            "title": "Can View Department Access Users",
+            "type": "boolean"
+          },
+          "can_view_governance": {
+            "default": false,
+            "title": "Can View Governance",
+            "type": "boolean"
+          },
+          "can_view_riskhub": {
+            "default": false,
+            "title": "Can View Riskhub",
+            "type": "boolean"
+          },
+          "can_view_user_directory": {
+            "default": false,
+            "title": "Can View User Directory",
+            "type": "boolean"
+          },
+          "can_view_users_page": {
+            "default": false,
+            "title": "Can View Users Page",
+            "type": "boolean"
+          },
+          "can_view_users_route": {
+            "default": false,
+            "title": "Can View Users Route",
+            "type": "boolean"
+          },
+          "is_second_line": {
+            "default": false,
+            "title": "Is Second Line",
+            "type": "boolean"
+          },
+          "resource_permissions": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Resource Permissions",
+            "type": "object"
+          }
+        },
+        "title": "MeCapabilities",
+        "type": "object"
+      },
+      "PasswordChangeRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "recent_auth_proof": {
+            "format": "password",
+            "title": "Recent Auth Proof",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "recent_auth_proof",
+          "password"
+        ],
+        "title": "PasswordChangeRequest",
+        "type": "object"
+      },
+      "ReasonRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "reason": {
+            "maxLength": 2000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "ReasonRequest",
+        "type": "object"
+      },
+      "RecentAuthenticationRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "factor": {
+            "format": "password",
+            "title": "Factor",
+            "type": "string",
+            "writeOnly": true
+          },
+          "intended_email": {
+            "anyOf": [
+              {
+                "format": "email",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intended Email"
+          },
+          "intended_password": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intended Password"
+          },
+          "intended_recovery_operation": {
+            "anyOf": [
+              {
+                "enum": [
+                  "factor_recovery",
+                  "credential_and_factor_recovery",
+                  "verified_address_recovery"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Intended Recovery Operation"
+          },
+          "method": {
+            "default": "totp",
+            "enum": [
+              "totp",
+              "recovery_code"
+            ],
+            "title": "Method",
+            "type": "string"
+          },
+          "operation": {
+            "enum": [
+              "password_change",
+              "email_change",
+              "factor_replace",
+              "recovery_codes",
+              "assisted_recovery"
+            ],
+            "title": "Operation",
+            "type": "string"
+          },
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          },
+          "target_user_id": {
+            "exclusiveMinimum": 0,
+            "title": "Target User Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "password",
+          "factor",
+          "target_user_id",
+          "operation"
+        ],
+        "title": "RecentAuthenticationRequest",
+        "type": "object"
+      },
+      "RecoveryStartRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "current_password": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Current Password"
+          },
+          "grant": {
+            "format": "password",
+            "title": "Grant",
+            "type": "string",
+            "writeOnly": true
+          },
+          "new_password": {
+            "anyOf": [
+              {
+                "format": "password",
+                "type": "string",
+                "writeOnly": true
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "New Password"
+          }
+        },
+        "required": [
+          "grant"
+        ],
+        "title": "RecoveryStartRequest",
+        "type": "object"
+      },
+      "ResetCompleteRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "grant": {
+            "format": "password",
+            "title": "Grant",
+            "type": "string",
+            "writeOnly": true
+          },
+          "password": {
+            "format": "password",
+            "title": "Password",
+            "type": "string",
+            "writeOnly": true
+          }
+        },
+        "required": [
+          "grant",
+          "password"
+        ],
+        "title": "ResetCompleteRequest",
+        "type": "object"
+      },
+      "ResetRequest": {
+        "additionalProperties": false,
+        "properties": {
+          "email": {
+            "format": "email",
+            "title": "Email",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "ResetRequest",
+        "type": "object"
+      },
+      "TokenResponse": {
+        "description": "Schema for JWT token response.",
+        "properties": {
+          "access_token": {
+            "title": "Access Token",
+            "type": "string"
+          },
+          "post_login_redirect_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Post Login Redirect To"
+          },
+          "token_type": {
+            "default": "bearer",
+            "title": "Token Type",
+            "type": "string"
+          },
+          "user": {
+            "$ref": "#/components/schemas/UserBrief"
+          }
+        },
+        "required": [
+          "access_token",
+          "user"
+        ],
+        "title": "TokenResponse",
+        "type": "object"
+      },
+      "UserBrief": {
+        "description": "Brief user info for current user endpoint.",
+        "properties": {
+          "access_scope": {
+            "$ref": "#/components/schemas/AccessScopeEnum"
+          },
+          "department_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Department Id"
+          },
+          "department_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Department Name"
+          },
+          "effective_permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Effective Permissions",
+            "type": "array"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "entra_business_role": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Entra Business Role"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "me_capabilities": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/MeCapabilities"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "permissions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Permissions",
+            "type": "array"
+          },
+          "role": {
+            "title": "Role",
+            "type": "string"
+          },
+          "role_display_name": {
+            "title": "Role Display Name",
+            "type": "string"
+          },
+          "scope_label": {
+            "title": "Scope Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "name",
+          "role",
+          "role_display_name",
+          "permissions",
+          "effective_permissions",
+          "access_scope",
+          "scope_label"
+        ],
+        "title": "UserBrief",
+        "type": "object"
+      }
+    }
+  },
+  "info": {
+    "description": "Not a live API. #193 contracts; implementation #198\u2013#201.",
+    "title": "RiskHub reserved native identity contract",
+    "version": "1.0.0"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/auth/local/email/change": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "bearer + recent proof",
+        "x-implementation-issue": 200,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/email/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EmailChangeCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "bearer + recent proof + new-address grant",
+        "x-implementation-issue": 200,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/enrollment/start": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnrollmentStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocalAuthChallenge"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "invitation grant",
+        "x-implementation-issue": 198,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/factor/replace": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorReplacementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorSetupResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "bearer + recent proof",
+        "x-implementation-issue": 201,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/mfa/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorEnrollmentResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "setup challenge",
+        "x-implementation-issue": 199,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/mfa/setup": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChallengeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorSetupResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "enrollment challenge",
+        "x-implementation-issue": 199,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/mfa/verify": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "password + bound MFA challenge",
+        "x-implementation-issue": 199,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/password/change": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PasswordChangeRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "bearer + recent proof",
+        "x-implementation-issue": 200,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/password/reset/complete": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetCompleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "reset grant",
+        "x-implementation-issue": 200,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/password/reset/request": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResetRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "public, generic result",
+        "x-implementation-issue": 200,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/recent-auth": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecentAuthenticationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActionProofResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "bearer + password + factor",
+        "x-implementation-issue": 199,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/recovery-codes/regenerate": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorReplacementRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorEnrollmentResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "bearer + recent proof",
+        "x-implementation-issue": 201,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/recovery/confirm": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FactorVerifyRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorEnrollmentResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "approved bound recovery challenge",
+        "x-implementation-issue": 201,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/auth/local/recovery/start": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RecoveryStartRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FactorSetupResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "approved recovery grant + required credential proof",
+        "x-implementation-issue": 201,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/users/invitations": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/InvitationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "platform admin",
+        "x-implementation-issue": 198,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/users/{user_id}/invitations/cancel": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CompletedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "platform admin",
+        "x-implementation-issue": 198,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/users/{user_id}/invitations/resend": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InvitationResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "platform admin",
+        "x-implementation-issue": 198,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/users/{user_id}/password-reset": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReasonRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "platform admin",
+        "x-implementation-issue": 200,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    },
+    "/api/v1/users/{user_id}/recovery": {
+      "post": {
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AssistedRecoveryRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AcceptedResponse"
+                }
+              }
+            },
+            "description": "Reserved contract; handler not released"
+          }
+        },
+        "x-authentication": "platform admin + recent proof; privileged targets offline only",
+        "x-implementation-issue": 201,
+        "x-profile": "password/none (not released)",
+        "x-transaction-owner": "identity/auth service workflow, never endpoint commit"
+      }
+    }
+  }
+}

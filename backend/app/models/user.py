@@ -2,10 +2,11 @@ from datetime import datetime
 from enum import Enum as PyEnum
 from typing import TYPE_CHECKING
 
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Index, String, func
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Index, String, func
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from app.core.datetime_utils import coerce_utc
 from app.db.base import Base
 
 if TYPE_CHECKING:
@@ -38,12 +39,23 @@ class User(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
     external_id: Mapped[str | None] = mapped_column(String(255), unique=True, index=True, nullable=True)
     email: Mapped[str] = mapped_column(String(255), nullable=False)
-    __table_args__ = (Index("ux_users_email_lower", func.lower(email), unique=True),)
+    __table_args__ = (
+        Index("ux_users_email_lower", func.lower(email), unique=True),
+        CheckConstraint(
+            "local_enrollment_state IS NULL OR local_enrollment_state IN ('invited', 'password_set', 'enrolled')",
+            name="ck_users_local_enrollment_state",
+        ),
+    )
     name: Mapped[str] = mapped_column(String(255))
     job_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     # Entra-owned organizational metadata. This must never drive RiskHub authorization.
     entra_business_role: Mapped[str | None] = mapped_column(String(255), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Local suspension survives upstream directory changes. is_active is its effective projection.
+    local_suspended: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false", nullable=False)
+    local_suspended_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    # NULL denotes an existing Entra/legacy-development account, not native production enrollment.
+    local_enrollment_state: Mapped[str | None] = mapped_column(String(20), nullable=True)
     employee_type: Mapped[str | None] = mapped_column(String(50), nullable=True, default="employee")
     token_version: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
 
@@ -151,6 +163,6 @@ class User(Base):
         return self.department.name if self.department else None
 
     def has_active_break_glass(self, *, now: datetime) -> bool:
-        if self.break_glass_expires_at is None:
-            return False
-        return self.break_glass_expires_at > now
+        expires_at = coerce_utc(self.break_glass_expires_at)
+        current_time = coerce_utc(now)
+        return bool(expires_at is not None and current_time is not None and expires_at > current_time)

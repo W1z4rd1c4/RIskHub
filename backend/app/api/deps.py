@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.identity_policy import can_authenticate_user
 from app.core.logging import get_logger
 from app.core.permissions import can_view_risk_committee
 from app.core.security import TokenDecodeError, decode_access_token
@@ -37,9 +38,11 @@ async def _resolve_bearer_user(
         payload = decode_access_token(token, settings=settings)
         user_id = payload.get("user_id")
         token_version_claim = payload.get("token_version")
-        if not isinstance(user_id, int):
+        if type(user_id) is not int:
             raise HTTPException(status_code=401, detail="Invalid token")
-        if token_version_claim is not None and not isinstance(token_version_claim, int):
+        if (token_version_claim is None and not settings.debug) or (
+            token_version_claim is not None and type(token_version_claim) is not int
+        ):
             raise HTTPException(status_code=401, detail="Invalid token")
     except (TokenDecodeError, HTTPException) as exc:
         if optional:
@@ -50,7 +53,7 @@ async def _resolve_bearer_user(
 
     result = await db.execute(select(User).options(*_user_permission_load()).where(User.id == user_id))
     user = result.scalar_one_or_none()
-    if not user or not user.is_active:
+    if not user or not can_authenticate_user(user, settings=settings):
         if optional:
             return None
         raise HTTPException(status_code=401, detail="Unauthorized")
@@ -87,11 +90,9 @@ async def get_current_user(
     # STRICT CHECK: Must be enabled in settings AND debug mode must be True
     if x_mock_user_id and settings.mock_auth_enabled and settings.debug:
         logger.warning("mock_auth_used", user_id=x_mock_user_id)
-        result = await db.execute(
-            select(User).options(*_user_permission_load()).where(User.id == x_mock_user_id)
-        )
+        result = await db.execute(select(User).options(*_user_permission_load()).where(User.id == x_mock_user_id))
         user = result.scalar_one_or_none()
-        if not user or not user.is_active:
+        if not user or not can_authenticate_user(user, settings=settings):
             raise HTTPException(status_code=401, detail="Unauthorized")
         return user
 

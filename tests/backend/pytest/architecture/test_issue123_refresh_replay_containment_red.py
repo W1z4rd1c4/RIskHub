@@ -39,8 +39,7 @@ def test_replay_containment_order_is_locked_and_workflow_committed() -> None:
         "select(RefreshToken)",
         "await _find_active_rotated_descendant(",
         "confirmed = await db.execute(",
-        "other_revocations = await db.execute(",
-        "user.token_version += 1",
+        "await invalidate_user_sessions(",
         "await record_session_audit_plan(",
         "await commit_refresh_session(db)",
     ]
@@ -64,3 +63,15 @@ def test_every_failure_refresh_revoke_uses_the_user_first_lock_primitive() -> No
         "update(RefreshToken)"
     )
     assert resolution_source.count("await _revoke_refresh_row(") == 3
+
+
+def test_shared_replay_invalidation_still_bumps_and_revokes_without_commit() -> None:
+    path = REPO_ROOT / "backend/app/services/_auth_session_workflow/authority.py"
+    source = _function_source(path, "invalidate_user_sessions")
+    revoke = _function_source(path, "revoke_user_refresh_tokens")
+    assert source.index("user.token_version += 1") < source.index(
+        "await revoke_user_refresh_tokens("
+    )
+    assert "RefreshToken.revoked_at.is_(None)" in revoke
+    assert "RefreshToken.user_id == user_id" in revoke
+    assert "commit(" not in source + revoke

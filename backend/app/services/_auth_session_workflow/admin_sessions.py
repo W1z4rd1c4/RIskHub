@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime
 
-from sqlalchemy import func, select, update
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -11,6 +11,8 @@ from app.core.activity_logger import log_activity
 from app.core.datetime_utils import utc_now
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+
+from .authority import invalidate_user_sessions
 
 
 class SessionWorkflowError(Exception):
@@ -58,22 +60,19 @@ async def list_active_session_projections(
     )
 
     rows = (
-        (
-            await db.execute(
-                select(
-                    User,
-                    session_subquery.c.active_sessions,
-                    session_subquery.c.last_activity,
-                    session_subquery.c.last_login,
-                )
-                .join(session_subquery, User.id == session_subquery.c.user_id)
-                .where(User.is_active.is_(True))
-                .options(selectinload(User.role), selectinload(User.department))
-                .order_by(session_subquery.c.last_activity.desc())
+        await db.execute(
+            select(
+                User,
+                session_subquery.c.active_sessions,
+                session_subquery.c.last_activity,
+                session_subquery.c.last_login,
             )
+            .join(session_subquery, User.id == session_subquery.c.user_id)
+            .where(User.is_active.is_(True))
+            .options(selectinload(User.role), selectinload(User.department))
+            .order_by(session_subquery.c.last_activity.desc())
         )
-        .all()
-    )
+    ).all()
 
     return [
         ActiveSessionProjection(
@@ -102,9 +101,7 @@ async def revoke_user_sessions(
 
     user = (
         await db.execute(
-            select(User)
-            .where(User.id == target_user_id)
-            .with_for_update()
+            select(User).where(User.id == target_user_id).with_for_update().execution_options(populate_existing=True)
         )
     ).scalar_one_or_none()
 
@@ -112,15 +109,12 @@ async def revoke_user_sessions(
         raise SessionWorkflowError(status_code=404, detail="User not found")
 
     current_time = now or utc_now()
-    revoked_rows = await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == target_user_id)
-        .where(RefreshToken.revoked_at.is_(None))
-        .values(revoked_at=current_time, revoked_reason=f"admin_revoke:{admin_user.id}")
+    revoked_count = await invalidate_user_sessions(
+        db=db,
+        user=user,
+        reason=f"admin_revoke:{admin_user.id}",
+        now=current_time,
     )
-    revoked_count = int(getattr(revoked_rows, "rowcount", 0) or 0)
-    user.token_version += 1
-    db.add(user)
 
     await log_activity(
         db=db,

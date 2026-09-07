@@ -3,7 +3,7 @@
 Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 
 > Version: 1.0
-> Last reviewed: 2026-09-01
+> Last reviewed: 2026-09-07
 > Owner: RiskHub Maintainer
 > Machine-readable mirror: [`authorization-capability-contract.json`](./authorization-capability-contract.json)
 > Capability field catalog: [`capability-catalog.json`](./capability-catalog.json)
@@ -11,6 +11,20 @@ Back to tree: [`docs/DOCUMENTATION_TREE.md`](../DOCUMENTATION_TREE.md)
 ## Architecture exception review
 
 2026-09-06: Architecture exception review routes RiskHub configuration and Vendor archive/restore commits through the shared rollback boundary. Mutation plus audit remain atomic; authorization guards, row visibility, capability exports, and permission semantics are unchanged. The existing four-module auth baseline and 27 public capability exports were reviewed and renewed through 2026-12-05.
+
+## Identity foundations — 2026-09-07
+
+Group 1 (#193–#196) adds independent local suspension and a serialized last-effective-
+platform-admin guard. A CRO cannot substitute for platform identity administration.
+Actual password, role/scope/department/manager, local suspension, and manual recovery-
+address changes revoke refresh authority and advance the User version transactionally.
+Production bearer/refresh version authority excludes absent and boolean values.
+`can_resume` and explanatory status/field-ownership metadata are backend projections;
+they never replace mutation checks. Entra identity fields remain upstream-owned,
+while RiskHub department and business access remain local. Binding admission and
+migration/rollback limits are specified in [ADR-018](../adr/ADR-018-identity-foundations.md)
+and [identity foundations](./identity-foundations.md). Native production remains
+unavailable until #208; this is not a second authentication or authorization system.
 
 ## Purpose
 

@@ -57,7 +57,7 @@ class AuthSettingsMixin:
     auth_sso_challenge_ttl_seconds: int = 300
     # Deprecated compatibility flag: the backend now enforces the SSO challenge flow unconditionally.
     auth_sso_require_challenge: bool = True
-    directory_provider: Literal["auto", "graph", "ad_emulator"] = "graph"
+    directory_provider: Literal["auto", "graph", "ad_emulator", "none"] = "graph"
     ad_emulator_base_url: str | None = None
     ad_emulator_api_key: str | None = None
     ad_emulator_api_key_header: str = "X-API-Key"

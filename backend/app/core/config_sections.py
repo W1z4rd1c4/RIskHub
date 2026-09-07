@@ -19,7 +19,7 @@ class AuthSettingsSection(_FrozenSectionModel):
     allow_email_link: bool
     sso_challenge_ttl_seconds: int
     sso_require_challenge: bool
-    directory_provider: Literal["auto", "graph", "ad_emulator"]
+    directory_provider: Literal["auto", "graph", "ad_emulator", "none"]
 
 
 class OutboundSettingsSection(_FrozenSectionModel):

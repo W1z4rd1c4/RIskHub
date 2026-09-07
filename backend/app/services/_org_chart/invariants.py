@@ -114,4 +114,13 @@ async def validate_dept_manager_dept_change(
 
 async def clear_manager_references_for_inactive_user(db: AsyncSession, *, user_id: int) -> None:
     await db.execute(update(Department).where(Department.manager_id == user_id).values(manager_id=None))
-    await db.execute(update(User).where(User.manager_id == user_id).values(manager_id=None))
+    from app.services._auth_session_workflow.authority import invalidate_user_sessions
+
+    subordinates = (
+        (await db.execute(select(User).where(User.manager_id == user_id).order_by(User.id).with_for_update(of=User)))
+        .scalars()
+        .all()
+    )
+    for subordinate in subordinates:
+        subordinate.manager_id = None
+        await invalidate_user_sessions(db=db, user=subordinate, reason="manager_deactivated")

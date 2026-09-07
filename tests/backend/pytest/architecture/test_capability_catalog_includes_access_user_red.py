@@ -19,6 +19,7 @@ REQUIRED_FIELDS = {
     "can_edit_business_access",
     "can_edit_role",
     "can_deactivate",
+    "can_resume",
     "can_change_active_status",
     "can_break_glass_enable",
     "can_revoke_sessions",

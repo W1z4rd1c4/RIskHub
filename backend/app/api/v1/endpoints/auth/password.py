@@ -8,6 +8,7 @@ from starlette.responses import Response
 
 from app.core.config import Settings, get_settings
 from app.core.email import email_equals
+from app.core.identity_policy import can_authenticate_user
 from app.core.logging import get_logger
 from app.core.security import verify_password_or_dummy
 from app.core.user_query_options import user_selectinload_options
@@ -15,6 +16,7 @@ from app.db.session import get_db
 from app.models import User
 from app.schemas.auth import LoginRequest, TokenResponse
 from app.services._auth_session_workflow import commit_failed_password_login, commit_successful_password_login
+from app.services._auth_session_workflow.authority import lock_session_user
 from app.services.account_lockout_service import AccountLockoutBackendError
 
 from ._request_protection import validate_request_origin
@@ -99,6 +101,8 @@ async def login(
         .where(email_equals(User.email, credentials.email))
     )
     user = result.scalar_one_or_none()
+    verified_version = user.token_version if user else None
+    verified_hash = user.hashed_password if user else None
     password_valid = verify_password_or_dummy(credentials.password, user.hashed_password if user else None)
 
     if not user or not password_valid:
@@ -129,7 +133,7 @@ async def login(
         await commit_failed_password_login(db)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
-    if not user.is_active:
+    if not can_authenticate_user(user, settings=settings):
         raise HTTPException(status_code=403, detail="User account is inactive")
 
     # Clear lockout tracking on successful login before issuing tokens.
@@ -139,6 +143,16 @@ async def login(
         operation=lambda: account_lockout.record_successful_login(credentials.email),
         fallback=None,
     )
+
+    user = await lock_session_user(db, user_id=user.id)
+    if (
+        user is None
+        or not can_authenticate_user(user, settings=settings)
+        or user.token_version != verified_version
+        or user.hashed_password != verified_hash
+        or (not settings.debug and user.external_id is not None)
+    ):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token_response = _build_token_response(user, settings=settings)
     await _issue_refresh_session(db=db, request=request, response=response, user=user, settings=settings)

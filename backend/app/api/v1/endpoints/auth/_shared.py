@@ -5,7 +5,6 @@ from datetime import datetime, timedelta
 from typing import TYPE_CHECKING
 
 from fastapi import HTTPException
-from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
 from starlette.responses import Response
@@ -146,33 +145,6 @@ async def _issue_refresh_session(
     set_refresh_cookie(response, refresh_token, settings, max_age=cookie_max_age)
     set_csrf_cookie(response, settings, max_age=cookie_max_age)
     return refresh_row
-
-
-async def _revoke_user_refresh_tokens(
-    *,
-    db: AsyncSession,
-    user_id: int,
-    reason: str,
-) -> int:
-    now = utc_now()
-    result = await db.execute(
-        update(RefreshToken)
-        .where(RefreshToken.user_id == user_id)
-        .where(RefreshToken.revoked_at.is_(None))
-        .values(revoked_at=now, revoked_reason=reason)
-    )
-    return int(getattr(result, "rowcount", 0) or 0)
-
-
-async def _invalidate_user_sessions(
-    *,
-    db: AsyncSession,
-    user: User,
-    reason: str,
-) -> int:
-    user.token_version += 1
-    db.add(user)
-    return await _revoke_user_refresh_tokens(db=db, user_id=user.id, reason=reason)
 
 
 async def _resolve_safe_default_role(db: AsyncSession) -> Role:

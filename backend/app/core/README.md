@@ -24,3 +24,5 @@ Shared backend runtime primitives: settings, logging, security, scheduling, pagi
 - Keep `app.core.config` as the public settings import surface even though the implementation now lives under `settings/`.
 - Treat this directory as infrastructure code, not a grab bag for endpoint-specific business logic.
 - If a module grows around one bounded concern, prefer a dedicated subpackage with its own README instead of expanding a flat utility file.
+
+- `identity_policy.py`: common stored/underlying account eligibility and field ownership.

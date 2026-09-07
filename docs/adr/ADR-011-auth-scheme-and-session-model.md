@@ -65,3 +65,14 @@ No schema rollback is required. Rolling back the managed-production lifetime pol
 - ADR-002: governs service-owned transaction boundaries and the empty endpoint commit allowlist.
 - ADR-003: keeps authentication and authorization failures mapped through the domain exception taxonomy.
 - ADR-004: keeps token and refresh-session timestamps UTC-aware.
+
+## Identity-foundation amendment (ADR-018)
+
+Group 1 preserves this session model. Application-wide invalidation is owned by
+`_auth_session_workflow.authority`; manual lifecycle and directory changes use the
+same version/refresh transaction primitive as logout and confirmed replay. Production
+access claims require a non-boolean integer version; legacy versionless tokens must
+reauthenticate. Issuance rechecks current User authority under a row lock.
+[ADR-018](./ADR-018-identity-foundations.md) adds installation binding, independent
+local suspension and the last-effective-platform-admin guard. Native production
+admission remains closed until #208; no alternate session authority is introduced.

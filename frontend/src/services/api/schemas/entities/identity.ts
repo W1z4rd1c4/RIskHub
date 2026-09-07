@@ -105,12 +105,17 @@ export const accessUserCapabilitiesSchema = passthroughObject({
     can_change_active_status: z.boolean(),
     can_break_glass_enable: z.boolean(),
     can_revoke_sessions: z.boolean(),
+    can_resume: z.boolean().optional(),
+    active_status_block_reason: z.string().nullable().optional(),
+    directory_owned_fields: z.array(z.string()).optional(),
 });
 export const accessUserReadSchema: z.ZodType<AccessUserRead> = passthroughObject({
     id: z.number(),
     email: z.string(),
     name: z.string(),
     is_active: z.boolean(),
+    local_suspended: z.boolean().optional(),
+    local_enrollment_state: z.string().nullable().optional(),
     role_id: z.number(),
     role: passthroughObject({
         id: z.number(),

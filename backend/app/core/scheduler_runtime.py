@@ -107,9 +107,7 @@ def get_scheduler_runtime_state() -> dict[str, object]:
     lock_provider = runtime_state.lock_provider.provider_name if runtime_state.lock_provider is not None else None
     enable = os.getenv("ENABLE_SCHEDULER", "false").lower() == "true"
     lock_acquired = (
-        bool(runtime_state.lock_provider.lock_acquired)
-        if runtime_state.lock_provider is not None
-        else False
+        bool(runtime_state.lock_provider.lock_acquired) if runtime_state.lock_provider is not None else False
     )
     state_details = get_scheduler_role_status(
         scheduler_enabled=enable,
@@ -256,6 +254,14 @@ async def start_scheduler_async() -> None:
 
     if runtime_state.scheduler.running:
         return
+
+    from app.core.config import get_settings
+    from app.services.identity_installation import validate_installation_binding
+
+    settings = get_settings()
+    if not settings.debug:
+        async with runtime_state.db_sessionmaker() as db:
+            await validate_installation_binding(db, settings=settings)
 
     # Lazy imports keep this module free of the scheduler_jobs/outbox import cycle.
     from app.core.scheduler_jobs import resolve_process_worker_count
