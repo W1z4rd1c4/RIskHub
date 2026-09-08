@@ -1,0 +1,111 @@
+name: Native Identity Candidate Materialization
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/identity-group2-materialize.yml'
+permissions:
+  contents: read
+jobs:
+  materialize:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/identity-group-2-local-auth'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: f521ca47c885cc2971c023d2084b914fb5a37a6a
+          persist-credentials: false
+      - name: Reconstruct only the fixed reviewed candidate tree
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import lzma
+          import os
+          import pathlib
+          import subprocess
+          import urllib.request
+
+          API = 'https://api.github.com/repos/W1z4rd1c4/RiskHub'
+          BASE_TREE = '77a368a26f7c1be6d8589681c1d1e24275d90c6f'
+          EXPECTED_TREE = 'fc1b583ed15554958f7b446b178388c1f029b21e'
+          CHUNKS = [
+              '9a0409de181c3c95b7b0d1fe9df0b7db0b53bbc2',
+              '09cdbacec106f6c95242e03d5d185cfcfc0e1e99',
+              '1a7797b7f856c5ac69c9dfb3d0cb05359490ffd6',
+              '30e06a9f605e0ee61a2ecb483999523882c1f37d',
+              '450e1bcfc0275c82d1c9954255437445593fccba',
+              'e9062f0e50147061eb77b409bc66b39c9bb54a98',
+              '98623058fb1f88c96b7c32e376e021b4ccc403dc',
+              'faf1a17299f273089d8c130cccbed79584a5fda2',
+              'faec6a76dd357d780689db76a9412f7202a261e0',
+          ]
+
+          def api(path, payload=None):
+              assert path.startswith('/git/')
+              data = None if payload is None else json.dumps(payload).encode()
+              request = urllib.request.Request(API + path, data=data, headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              }, method='GET' if data is None else 'POST')
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  return json.load(response)
+
+          def git(*args):
+              return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', *args])
+
+          assert git('rev-parse', 'HEAD^{tree}').decode().strip() == BASE_TREE
+          pieces = []
+          for sha in CHUNKS:
+              blob = api('/git/blobs/' + sha)
+              assert blob['sha'] == sha and blob['encoding'] == 'base64'
+              pieces.append(base64.b64decode(blob['content']))
+          compressed = b''.join(pieces)
+          assert len(compressed) == 48788
+          assert hashlib.sha256(compressed).hexdigest() == 'bf366c85c4d300248f5aa4083b2ad0878d755d4463f8a74ee9e979ffabcafcf9'
+          patch = lzma.decompress(compressed, memlimit=268435456)
+          assert len(patch) == 258986
+          assert hashlib.sha256(patch).hexdigest() == '65e21c04ff44f761af6258e9e7086d6da96a2586c875090161365b80cfc34b9e'
+          subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', 'apply', '--index', '--whitespace=error'], input=patch, check=True)
+
+          url = 'https://raw.githubusercontent.com/danielmiessler/SecLists/3153474db3a882d4410aa4f4f0ac300cca0fee0e/Passwords/Common-Credentials/10k-most-common.txt'
+          with urllib.request.urlopen(url, timeout=30) as response:
+              policy = response.read(1048576)
+          assert hashlib.sha256(policy).hexdigest() == '4adb3f0afb4a10cf19ebe48d8c69a46f934bbc8d77c694c210564f9583e7f4ba'
+          policy_path = pathlib.Path('backend/app/core/password_data/common-passwords.txt')
+          policy_path.write_bytes(policy)
+          git('add', '--', str(policy_path))
+          assert git('write-tree').decode().strip() == EXPECTED_TREE
+
+          entries = {}
+          for item in git('ls-files', '--stage', '-z').split(b'\0'):
+              if not item:
+                  continue
+              metadata, path = item.split(b'\t', 1)
+              mode, sha, stage = metadata.decode().split()
+              assert stage == '0' and mode in ('100644', '100755')
+              entries[path.decode()] = (mode, sha)
+          changed = [p.decode() for p in git('diff', '--cached', '--no-renames', '--name-only', '-z').split(b'\0') if p]
+          tree = []
+          for path in changed:
+              if path not in entries:
+                  tree.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': None})
+                  continue
+              mode, sha = entries[path]
+              content = git('cat-file', 'blob', sha).decode('utf-8')
+              tree.append({'path': path, 'mode': mode, 'type': 'blob', 'content': content})
+          result = api('/git/trees', {'base_tree': BASE_TREE, 'tree': tree})
+          assert result['sha'] == EXPECTED_TREE, result['sha']
+          print('VERIFIED_CANDIDATE_TREE=' + result['sha'])
+          print('CHANGED_FILES=' + str(len(changed)))
+          print('No application code executed; no commit or ref update performed.')
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
+              summary.write('Verified candidate tree: `' + result['sha'] + '`\n\nNo application execution or branch update.\n')
+          PY
