@@ -1,13 +1,10 @@
 name: Identity Regression Candidate Assembly
-
 on:
   pull_request:
     paths:
       - '.github/workflows/identity-regression-materialize.yml'
-
 permissions:
   contents: read
-
 jobs:
   assemble:
     if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/identity-group-1-foundations' && github.event.pull_request.base.ref == 'main'
@@ -19,8 +16,14 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           ref: 86191772c29fa988469e7498472cf07ceba14f40
+          path: foundations
           persist-credentials: false
-      - name: Reconstruct the fixed test-only candidate without executing it
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: 9cbc61a7ac337a59ffbde53383da06aa31882cc3
+          path: native
+          persist-credentials: false
+      - name: Assemble fixed source objects only; never run code or change refs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -30,17 +33,17 @@ jobs:
           import json
           import lzma
           import os
+          import pathlib
           import subprocess
           import urllib.request
 
-          BASE = '27c84bbf64d8c1a79c8e0d475df5c1b4dbc4380f'
-          EXPECTED = '0452d24bdea1969a0ceb8902b94f0ccb6515ac66'
-          BLOB = '75a77ff75165f707a348d860dd3286b110035f79'
           API = 'https://api.github.com/repos/W1z4rd1c4/RiskHub'
+          CHUNKS = ['1d913b2861e5eb7274dc1432528f051d70cc3f9f', '543583092fc70ed3aaf36a52a9fcf1ec14f7c4d5']
+          ALLOWED = {'/git/trees', '/git/blobs', *('/git/blobs/' + sha for sha in CHUNKS)}
 
           def api(path, payload=None):
-              if path not in ('/git/blobs/' + BLOB, '/git/trees'):
-                  raise RuntimeError('Unapproved operation')
+              if path not in ALLOWED:
+                  raise RuntimeError('Unapproved Git operation')
               data = None if payload is None else json.dumps(payload).encode()
               request = urllib.request.Request(API + path, data=data, headers={
                   'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
@@ -51,34 +54,52 @@ jobs:
               with urllib.request.urlopen(request, timeout=60) as response:
                   return json.load(response)
 
-          def git(*args):
-              return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', *args])
+          def git(root, *args):
+              return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', *args], cwd=root)
 
-          if git('rev-parse', 'HEAD^{tree}').decode().strip() != BASE:
-              raise RuntimeError('Base tree mismatch')
-          blob = api('/git/blobs/' + BLOB)
-          compressed = base64.b64decode(blob['content'])
-          if len(compressed) != 2164 or hashlib.sha256(compressed).hexdigest() != '7faf6c3cea1b4db9d6f32173627b761bdde928d9be19f23756dac00fe8bbf70c':
-              raise RuntimeError('Compressed patch mismatch')
-          patch = lzma.decompress(compressed, memlimit=268435456)
-          if len(patch) != 10174 or hashlib.sha256(patch).hexdigest() != '46870aa177a865921cb4d73b4abf40d2ee564357360c9ecb1b852a833aa64803':
-              raise RuntimeError('Patch mismatch')
-          subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', 'apply', '--index', '--whitespace=error'], input=patch, check=True)
-          if git('write-tree').decode().strip() != EXPECTED:
-              raise RuntimeError('Candidate tree mismatch')
-          paths = [p.decode() for p in git('diff', '--cached', '--name-only', '-z').split(b'\0') if p]
-          if len(paths) != 6 or any(not p.startswith('tests/backend/pytest/') for p in paths):
-              raise RuntimeError('Unexpected changed paths')
-          tree = []
-          for path in paths:
-              entry = git('ls-files', '--stage', '--', path).decode().split()
-              if entry[0] != '100644' or entry[2] != '0':
-                  raise RuntimeError('Unexpected file mode or index stage')
-              content = git('cat-file', 'blob', entry[1]).decode('utf-8')
-              tree.append({'path': path, 'mode': '100644', 'type': 'blob', 'content': content})
-          result = api('/git/trees', {'base_tree': BASE, 'tree': tree})
-          if result['sha'] != EXPECTED:
-              raise RuntimeError('Published object tree mismatch')
-          print('VERIFIED_TEST_CORRECTION_TREE=' + result['sha'])
-          print('No application/test execution, commit creation, or ref update.')
+          compressed = b''.join(base64.b64decode(api('/git/blobs/' + sha)['content']) for sha in CHUNKS)
+          if len(compressed) != 12640 or hashlib.sha256(compressed).hexdigest() != '7dcd904901e14a6c7e85367dbb6d77cc4fbcd78c9b5e6a9a1cddef2c323939fa':
+              raise RuntimeError('Compressed bundle mismatch')
+          raw = lzma.decompress(compressed, memlimit=268435456)
+          if len(raw) != 166611 or hashlib.sha256(raw).hexdigest() != '7f79f64934c8135e8b7ce3f853701351ca65e77a55125a3039058a67b98f6359':
+              raise RuntimeError('Patch bundle mismatch')
+          patches = json.loads(raw)
+          candidates = [
+              ('repo1', 'foundations', '27c84bbf64d8c1a79c8e0d475df5c1b4dbc4380f', 'b92baf7add7e37436e1dcff8ce5da7ebcdf793cc', 16),
+              ('repo2', 'native', 'f9ede1632eb041e3fb1c699ee4f7214aefb2bd2c', 'f3ea48e65e813ce705129b17d61ee3116cf10ac4', 18),
+          ]
+          for key, root, base, expected, count in candidates:
+              if git(root, 'rev-parse', 'HEAD^{tree}').decode().strip() != base:
+                  raise RuntimeError('Unexpected source base')
+              patch = patches[key].encode()
+              subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', 'apply', '--index', '--whitespace=error'], input=patch, cwd=root, check=True)
+              if git(root, 'write-tree').decode().strip() != expected:
+                  raise RuntimeError('Candidate differs from locally checked tree')
+              paths = [p.decode() for p in git(root, 'diff', '--cached', '--name-only', '-z').split(b'\0') if p]
+              if len(paths) != count or any(p.startswith('.github/') for p in paths):
+                  raise RuntimeError('Unexpected paths or workflow mutation')
+              tree = []
+              for path in paths:
+                  entry = git(root, 'ls-files', '--stage', '--', path).decode().split()
+                  if entry[0] not in ('100644', '100755') or entry[2] != '0':
+                      raise RuntimeError('Unexpected mode or stage')
+                  tree.append({'path': path, 'mode': entry[0], 'type': 'blob', 'content': git(root, 'cat-file', 'blob', entry[1]).decode()})
+              result = api('/git/trees', {'base_tree': base, 'tree': tree})
+              if result['sha'] != expected:
+                  raise RuntimeError('Remote object identity mismatch')
+              print(key + '_VERIFIED_TREE=' + result['sha'])
+          path = pathlib.Path('native/.github/workflows/identity-local.yml')
+          content = path.read_text()
+          if content.count('image: redis:7-alpine') != 1:
+              raise RuntimeError('Unexpected Redis image source')
+          content = content.replace('image: redis:7-alpine', 'image: redis:7@sha256:a5995dfdf108997f8a7c9587f54fad5e94ed5848de5236a6b28119e99efd67e0')
+          path.write_text(content)
+          git('native', 'add', '--', '.github/workflows/identity-local.yml')
+          if git('native', 'write-tree').decode().strip() != 'f00db89e54c005cd17201a8d902bfc3c90092b5d':
+              raise RuntimeError('Final native workflow tree mismatch')
+          result = api('/git/blobs', {'content': content, 'encoding': 'utf-8'})
+          if result['sha'] != git('native', 'hash-object', '.github/workflows/identity-local.yml').decode().strip():
+              raise RuntimeError('Workflow object mismatch')
+          print('NATIVE_PINNED_WORKFLOW_BLOB=' + result['sha'])
+          print('No application/test execution, commit creation, or branch-ref update.')
           PY
