@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import timedelta
 from typing import Any, Iterable, Optional
 
@@ -7,6 +8,7 @@ from fastapi import Depends, Header
 from jwt import InvalidTokenError
 from pwdlib import PasswordHash
 from pwdlib.exceptions import UnknownHashError
+from pwdlib.hashers.argon2 import Argon2Hasher
 from pwdlib.hashers.bcrypt import BcryptHasher
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -19,10 +21,12 @@ from app.core.permissions import ensure_business_view_access, has_permission
 from app.db.session import get_db
 from app.models import Role, RolePermission, User
 
-# bcrypt-only so hashes minted by the previous passlib[bcrypt] setup keep verifying.
-password_hasher = PasswordHash((BcryptHasher(),))
+# New credentials use Argon2id; bcrypt remains a bounded legacy verifier.
+password_hasher = PasswordHash((Argon2Hasher(memory_cost=65536, time_cost=3, parallelism=1), BcryptHasher()))
 logger = logging.getLogger(__name__)
-DUMMY_PASSWORD_HASH = "$2b$12$PKiOVCVtyq61.6OteU0aAOhNxM5hP3/jHGgVLh0mQYZe0B2YfM7uy"
+DUMMY_PASSWORD_HASH = (
+    "$argon2id$v=19$m=65536,t=3,p=1$+pjzxiPA06E1N9cX8WST1A$Dkb6tmfx1t+GJSaSknRJwXXSdb/NYzxtJ7vrwrCcmZI"
+)
 ACCESS_TOKEN_TYPE = "access"
 ACCESS_TOKEN_ISSUER = "riskhub"
 ACCESS_TOKEN_AUDIENCE = "riskhub-api"
@@ -32,28 +36,49 @@ TokenDecodeError = InvalidTokenError
 
 
 # Password hashing utilities
-def verify_password(plain_password: str, hashed_password: str) -> bool:
-    """Verify a plain password against a hashed password.
+def _bounded_password_hash(encoded: str) -> bool:
+    if len(encoded) > 255:
+        return False
+    if match := re.fullmatch(r"\$argon2id\$v=19\$m=(\d+),t=(\d+),p=(\d+)\$[A-Za-z0-9+/]+\$[A-Za-z0-9+/]+", encoded):
+        memory, iterations, parallelism = map(int, match.groups())
+        return 8 <= memory <= 65536 and 1 <= iterations <= 3 and 1 <= parallelism <= 4
+    if match := re.fullmatch(r"\$2[aby]\$(\d{2})\$[./A-Za-z0-9]{53}", encoded):
+        return 4 <= int(match.group(1)) <= 14
+    return False
 
-    A malformed or unknown-algorithm stored hash denies instead of raising, so
-    a corrupt row surfaces as a failed login rather than a 500.
-    """
+
+def verify_password(plain_password: str, hashed_password: str) -> bool:
+    """Verify supported bounded hashes, never truncate a legacy bcrypt input."""
+    if len(plain_password) > 128 or not _bounded_password_hash(hashed_password):
+        return False
     try:
+        if hashed_password.startswith("$2") and len(plain_password.encode("utf-8")) > 72:
+            return False
         return password_hasher.verify(plain_password, hashed_password)
-    except UnknownHashError:
+    except (UnknownHashError, ValueError, UnicodeError):
         return False
 
 
 def verify_password_or_dummy(plain_password: str, hashed_password: str | None) -> bool:
-    """Verify a password, falling back to a fixed dummy hash for timing normalization."""
-    target_hash = hashed_password or DUMMY_PASSWORD_HASH
+    """Unknown, missing and malformed hashes still perform current-cost work."""
+    supported = bool(hashed_password and _bounded_password_hash(hashed_password))
+    target_hash = hashed_password if supported else DUMMY_PASSWORD_HASH
+    assert target_hash is not None
     verified = verify_password(plain_password, target_hash)
-    return bool(hashed_password) and verified
+    return supported and verified
 
 
 def get_password_hash(password: str) -> str:
-    """Hash a password using bcrypt."""
+    """Hash using the canonical current algorithm; native writers enforce policy first."""
+    if len(password) > 128:
+        raise ValueError("Password input is too long")
     return password_hasher.hash(password)
+
+
+def password_hash_needs_update(encoded: str) -> bool:
+    return _bounded_password_hash(encoded) and (
+        encoded.startswith("$2") or password_hasher.current_hasher.check_needs_rehash(encoded)
+    )
 
 
 # JWT token utilities

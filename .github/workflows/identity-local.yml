@@ -6,16 +6,40 @@ on:
       - '.github/workflows/identity-local.yml'
       - 'backend/**'
       - 'tests/backend/**'
-      - 'docs/security/identity*'
+      - 'docs/**'
+      - 'frontend/src/types/localAuth.generated.d.ts'
 
 permissions:
   contents: read
 
+concurrency:
+  group: native-identity-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
-  dependency-evidence:
-    name: Native identity dependency provenance
+  native-regression:
+    name: Native identity PostgreSQL and Redis regression
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15@sha256:c635fa3e3b7421a659d34abdfd6d492f679cbe8149e261a501237b55c5a94212
+        env:
+          POSTGRES_USER: riskhub
+          POSTGRES_PASSWORD: riskhub_test
+          POSTGRES_DB: riskhub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd 'pg_isready -U riskhub -d riskhub_test'
+          --health-interval 10s --health-timeout 5s --health-retries 5
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd 'redis-cli ping'
+          --health-interval 10s --health-timeout 5s --health-retries 5
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
@@ -24,15 +48,68 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.13'
-      - name: Capture pinned maintained security libraries and offline policy data
+      - name: Install exact repository dependencies
+        run: python -m pip install -r backend/requirements-dev.txt
+      - name: Native authentication, real TLS mail and independent database races
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
+          TEST_REDIS_URL: redis://localhost:6379/15
         run: |
-          python -m pip download --only-binary=:all: --no-deps argon2-cffi==25.1.0 argon2-cffi-bindings==25.1.0 pyotp==2.9.0 --dest "$RUNNER_TEMP/native-wheels"
-          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/danielmiessler/SecLists/3153474db3a882d4410aa4f4f0ac300cca0fee0e/Passwords/Common-Credentials/10k-most-common.txt --output "$RUNNER_TEMP/native-wheels/common-passwords.txt"
-          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/danielmiessler/SecLists/3153474db3a882d4410aa4f4f0ac300cca0fee0e/LICENSE --output "$RUNNER_TEMP/native-wheels/SecLists-LICENSE"
-          sha256sum "$RUNNER_TEMP/native-wheels/"* > "$RUNNER_TEMP/native-wheels/SHA256SUMS"
+          set -euo pipefail
+          pytest ../tests/backend/pytest/test_local_identity.py ../tests/backend/pytest/test_local_identity_delivery.py ../tests/backend/pytest/test_local_identity_postgres.py ../tests/backend/pytest/test_local_identity_redis.py -q --no-cov | tee ../native-regression.log
+      - name: Existing identity, access, session and outbox contracts
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
+        run: |
+          set -euo pipefail
+          pytest ../tests/backend/pytest/test_identity_foundations.py ../tests/backend/pytest/test_identity_foundations_postgres.py ../tests/backend/pytest/test_auth_refresh.py ../tests/backend/pytest/test_auth_session_lifecycle.py ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_users.py ../tests/backend/pytest/test_ict_register_ciso_stewardship.py ../tests/backend/pytest/test_directory_import.py ../tests/backend/pytest/test_ad_deprovision_service.py ../tests/backend/pytest/test_admin_directory_sync.py ../tests/backend/pytest/test_sso_exchange.py ../tests/backend/pytest/test_outbox_approval_flow.py ../tests/backend/pytest/test_governed_mutation_outbox.py -q --no-cov | tee ../identity-regression.log
+      - name: Type, lint, architecture and contract checks
+        run: |
+          set -euo pipefail
+          cd backend
+          ruff check app ../tests/backend/pytest scripts
+          mypy app
+          pytest ../tests/backend/pytest/architecture -q --no-cov
+          python -m scripts.export_local_auth_contract --check
+          cd ..
+          python scripts/security/validate_production_contract_docs.py
+          python scripts/security/validate_authz_capability_contract.py
+          python scripts/tools/validate_python_dependency_lock.py
+          make -f scripts/Makefile docs-topology-consistency
+      - name: Capture immutable source and measured KDF evidence
+        if: always()
+        run: |
+          mkdir -p "$RUNNER_TEMP/native-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/native-evidence/commit.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/native-evidence/tree.txt"
+          git archive --format=tar.gz --output="$RUNNER_TEMP/native-evidence/source.tar.gz" HEAD
+          cd backend && python -m scripts.benchmark_local_auth --samples 5 > "$RUNNER_TEMP/native-evidence/kdf.json"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        if: always()
         with:
-          name: native-identity-wheels-${{ github.event.pull_request.head.sha }}
-          path: ${{ runner.temp }}/native-wheels/
-          retention-days: 1
+          name: native-identity-evidence-${{ github.event.pull_request.head.sha }}
+          path: |
+            native-regression.log
+            identity-regression.log
+            ${{ runner.temp }}/native-evidence/
+          retention-days: 7
           if-no-files-found: error
+
+  frontend-contract:
+    name: Native generated-type and frontend build compatibility
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6.4.0
+        with:
+          node-version: '24'
+      - run: npm ci
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend

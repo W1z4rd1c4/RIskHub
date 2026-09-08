@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import coerce_utc, utc_now
 from app.core.identity_policy import can_authenticate_user
+from app.core.local_session import native_identity_selected
 from app.core.logging import get_logger
 from app.core.permissions import can_view_risk_committee
 from app.core.security import TokenDecodeError, decode_access_token
@@ -62,6 +63,18 @@ async def _resolve_bearer_user(
         if optional:
             return None
         raise HTTPException(status_code=401, detail="Session revoked")
+
+    if native_identity_selected(settings):
+        from app.services._local_auth.sessions import validate_native_session
+
+        try:
+            if type(token_version_claim) is not int:
+                raise ValueError("Missing version")
+            await validate_native_session(db, settings=settings, user=user, payload=payload)
+        except ValueError as exc:
+            if optional:
+                return None
+            raise HTTPException(status_code=401, detail="Native session invalid") from exc
 
     if update_last_active:
         now = utc_now()

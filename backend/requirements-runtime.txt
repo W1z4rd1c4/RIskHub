@@ -21,3 +21,8 @@ structlog==25.5.0
 psutil==7.2.2
 python-dateutil==2.9.0.post0
 redis==7.2.0
+
+# Native identity cryptography; algorithm implementations remain upstream-owned.
+argon2-cffi==25.1.0
+argon2-cffi-bindings==25.1.0
+pyotp==2.9.0

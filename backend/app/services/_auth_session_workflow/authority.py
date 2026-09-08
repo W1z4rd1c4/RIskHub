@@ -51,6 +51,15 @@ async def invalidate_user_sessions(
     reason: str,
     now: datetime | None = None,
 ) -> int:
+    from app.models.local_auth import LocalAuthGrant
+
+    await db.execute(
+        update(LocalAuthGrant)
+        .where(
+            LocalAuthGrant.user_id == user.id, LocalAuthGrant.consumed_at.is_(None), LocalAuthGrant.revoked_at.is_(None)
+        )
+        .values(revoked_at=now or utc_now())
+    )
     user.token_version += 1
     db.add(user)
     return await revoke_user_refresh_tokens(db=db, user_id=user.id, reason=reason, now=now)

@@ -49,3 +49,8 @@ right = "_identity_access_lifecycle"
 [[pairs]]
 left = "_ict_register_lifecycle"
 right = "_vendor_governance"
+
+# ADR-007 native credential amendment: same auth transaction owner.
+[[pairs]]
+left = "_local_auth"
+right = "_auth_session_workflow"

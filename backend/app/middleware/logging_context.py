@@ -66,7 +66,11 @@ class LoggingContextMiddleware(BaseHTTPMiddleware):
                 "request_started",
                 method=request.method,
                 path=str(request.url.path),
-                query=str(request.url.query) if request.url.query else None,
+                query=(
+                    str(request.url.query)
+                    if request.url.query and not request.url.path.startswith(("/api/v1/auth/", "/api/v1/users/"))
+                    else None
+                ),
             )
 
             # Process request

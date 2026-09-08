@@ -1163,3 +1163,7 @@ async def client_department_head(
         yield ac
 
     app.dependency_overrides.clear()
+
+
+# Native fixtures are inert unless explicitly requested by a test.
+pytest_plugins = ["tests.backend.pytest._local_identity_fixtures"]

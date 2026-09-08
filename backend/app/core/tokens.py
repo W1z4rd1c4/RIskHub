@@ -14,6 +14,7 @@ from starlette.responses import Response
 from app.core.client_ip import resolve_request_client_ip
 from app.core.config import Settings
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.local_session import LocalSessionContext
 
 REFRESH_TOKEN_TYPE = "refresh"
 REFRESH_TOKEN_AUDIENCE = "riskhub-refresh"
@@ -39,6 +40,7 @@ def create_refresh_token(
     settings: Settings,
     expires_delta: timedelta | None = None,
     expires_at: datetime | None = None,
+    local_context: LocalSessionContext | None = None,
 ) -> tuple[str, datetime]:
     if expires_at is None:
         expires_at = utc_now() + (expires_delta or refresh_token_lifetime(settings))
@@ -53,6 +55,10 @@ def create_refresh_token(
         "jti": jti,
         "exp": expires_at,
     }
+    if local_context is not None:
+        expires_at = min(expires_at, local_context.expires_at)
+        payload["exp"] = expires_at
+        payload.update(local_context.claims())
     encoded = jwt.encode(payload, settings.secret_key, algorithm="HS256")
     return encoded, expires_at
 

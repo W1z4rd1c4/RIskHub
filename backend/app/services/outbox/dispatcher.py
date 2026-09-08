@@ -54,11 +54,7 @@ async def _record_dispatch_run_finish(
             run.status = status
             run.finished_at = finished_at
             run.duration_ms = int((finished_at - started_at).total_seconds() * 1000)
-            run.result_json = (
-                {"events_processed": events_processed}
-                if events_processed is not None
-                else None
-            )
+            run.result_json = {"events_processed": events_processed} if events_processed is not None else None
             run.error_message = error_message
 
 
@@ -74,6 +70,9 @@ async def dispatch_pending_outbox_events(
     try:
         async with sessionmaker() as claim_session:
             async with claim_session.begin():
+                from app.services._local_auth.delivery import purge_expired_delivery_secrets
+
+                await purge_expired_delivery_secrets(claim_session)
                 claimed_ids = await OutboxService.claim_batch(
                     claim_session,
                     batch_size=batch_size,

@@ -11,6 +11,7 @@ from starlette.responses import Response
 
 from app.core.activity_logger import audit_logger, log_activity
 from app.core.config import Settings, get_settings
+from app.core.local_session import native_identity_selected
 from app.core.logging import get_logger
 from app.core.tokens import (
     create_refresh_token,
@@ -18,6 +19,7 @@ from app.core.tokens import (
     get_request_client_ip,
     get_request_user_agent,
     new_token_jti,
+    token_decode_or_none,
 )
 from app.db.session import get_db
 from app.models import RefreshToken
@@ -102,6 +104,20 @@ async def refresh_session(
     if locked_user is None:
         return _refresh_unauthorized_response("Session revoked", settings)
     user = locked_user
+    local_context = None
+    if native_identity_selected(settings):
+        from app.services._local_auth.sessions import validate_native_session
+
+        try:
+            local_context = await validate_native_session(
+                db,
+                settings=settings,
+                user=user,
+                payload=token_decode_or_none(raw_token, settings) or {},
+                refresh_row=refresh_row,
+            )
+        except ValueError:
+            return _refresh_unauthorized_response("Native session invalid", settings)
     if context_outcome.audit_plan.context_changed:
         logger.warning(
             "refresh_session_context_changed",
@@ -139,6 +155,7 @@ async def refresh_session(
         jti=child_jti,
         settings=settings,
         expires_at=expires_at,
+        local_context=local_context,
     )
     rotate_result = await db.execute(
         update(RefreshToken)
@@ -165,6 +182,7 @@ async def refresh_session(
         refresh_jti=child_jti,
         refresh_token_and_expiry=(child_refresh_token, child_expires_at),
         issued_at=now,
+        local_context=local_context,
     )
 
     await log_activity(
@@ -182,6 +200,8 @@ async def refresh_session(
             "context_changed": context_outcome.audit_plan.context_changed,
         },
     )
-    token_response = _build_token_response(user, settings=settings, session_expires_at=expires_at)
+    token_response = _build_token_response(
+        user, settings=settings, session_expires_at=expires_at, local_context=local_context
+    )
     await commit_refresh_session(db)
     return token_response

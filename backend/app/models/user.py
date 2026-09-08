@@ -59,6 +59,8 @@ class User(Base):
     employee_type: Mapped[str | None] = mapped_column(String(50), nullable=True, default="employee")
     token_version: Mapped[int] = mapped_column(default=0, server_default="0", nullable=False)
 
+    local_email_verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Access scope (data visibility)
     access_scope: Mapped[AccessScope] = mapped_column(
         SQLEnum(

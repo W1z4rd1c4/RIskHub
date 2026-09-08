@@ -21,7 +21,15 @@ from app.services.outbox.handlers.questionnaires import (
     handle_questionnaire_submitted,
 )
 
+
+async def handle_local_auth_delivery(db, payload):
+    from app.services._local_auth.delivery import deliver_mail
+
+    await deliver_mail(db, payload.delivery_id)
+
+
 OUTBOX_EVENT_HANDLERS: dict[str, OutboxHandler] = {
+    "local_auth.deliver": handle_local_auth_delivery,
     "approval.request_created": handle_approval_request_created,
     "approval.request_resolved": handle_approval_request_resolved,
     "approval.request_cancelled": handle_approval_request_cancelled,

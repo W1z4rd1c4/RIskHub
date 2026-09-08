@@ -53,6 +53,10 @@ from app.models.vendor_risk_link import VendorRiskLink
 from app.models.vendor_sub_outsourcing import VendorSubOutsourcing
 
 __all__ = [
+    "LocalAuthDelivery",
+    "LocalAuthFactor",
+    "LocalAuthGrant",
+    "LocalAuthRecoveryCode",
     "Role",
     "Permission",
     "RolePermission",
@@ -126,3 +130,5 @@ __all__ = [
     "RefreshToken",
     "SchedulerJobRun",
 ]
+
+from .local_auth import LocalAuthDelivery, LocalAuthFactor, LocalAuthGrant, LocalAuthRecoveryCode

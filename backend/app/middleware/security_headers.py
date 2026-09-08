@@ -32,7 +32,13 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 
         response.headers["X-Frame-Options"] = "DENY"
         response.headers["X-Content-Type-Options"] = "nosniff"
-        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        sensitive_auth = request.url.path.startswith("/api/v1/auth/") or (
+            request.url.path.startswith("/api/v1/users/")
+            and any(part in request.url.path for part in ("invitations", "password-reset", "local-auth"))
+        )
+        response.headers["Referrer-Policy"] = "no-referrer" if sensitive_auth else "strict-origin-when-cross-origin"
+        if sensitive_auth:
+            response.headers["Cache-Control"] = "no-store"
         response.headers["Cross-Origin-Resource-Policy"] = "same-origin"
         response.headers["Permissions-Policy"] = "geolocation=(), microphone=(), camera=(), payment=(), usb=()"
 
