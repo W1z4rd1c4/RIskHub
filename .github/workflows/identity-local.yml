@@ -1,0 +1,36 @@
+name: Native Identity Verification
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/identity-local.yml'
+      - 'backend/**'
+      - 'tests/backend/**'
+      - 'docs/security/identity*'
+
+permissions:
+  contents: read
+
+jobs:
+  dependency-evidence:
+    name: Native identity dependency provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+      - name: Capture new maintained security-library wheels
+        run: |
+          python -m pip download --only-binary=:all: --no-deps argon2-cffi==25.1.0 argon2-cffi-bindings==25.1.0 pyotp==2.9.0 --dest "$RUNNER_TEMP/native-wheels"
+          sha256sum "$RUNNER_TEMP/native-wheels/"* > "$RUNNER_TEMP/native-wheels/SHA256SUMS"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: native-identity-wheels-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/native-wheels/
+          retention-days: 1
+          if-no-files-found: error
