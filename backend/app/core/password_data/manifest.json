@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "sha256": "4adb3f0afb4a10cf19ebe48d8c69a46f934bbc8d77c694c210564f9583e7f4ba",
+  "source": "https://github.com/danielmiessler/SecLists/blob/3153474db3a882d4410aa4f4f0ac300cca0fee0e/Passwords/Common-Credentials/10k-most-common.txt",
+  "license": "MIT",
+  "description": "Packaged common-password denylist; not an exhaustive breach corpus."
+}

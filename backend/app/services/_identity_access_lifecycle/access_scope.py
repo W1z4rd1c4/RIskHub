@@ -6,7 +6,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.activity_logger import build_change_set
 from app.core.config import Settings
 from app.core.email import email_equals
-from app.core.exceptions import NotFoundError, ValidationError
+from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
+from app.core.local_session import native_identity_selected
 from app.models import User
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserUpdate
@@ -58,6 +59,11 @@ async def update_access_profile(
     user = await lock_identity_transition(db, user_id=user_id, actor=current_user)
     if is_platform_admin(user) and not is_platform_admin(current_user):
         raise NotFoundError("User not found")
+
+    if native_identity_selected(settings) and "email" in update_data and update_data["email"] != user.email:
+        raise AuthorizationError(
+            "Use the verified local credential workflow", code="LOCAL_CREDENTIAL_WORKFLOW_REQUIRED"
+        )
 
     platform_update = {field: value for field, value in update_data.items() if field in PLATFORM_ADMIN_FIELDS}
     new_role = await authorize_access_update_fields(

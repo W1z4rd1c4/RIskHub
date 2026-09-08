@@ -12,7 +12,7 @@ class LoginRequest(BaseModel):
     """Schema for login request."""
 
     email: str  # Changed from EmailStr to allow .test TLD for testing
-    password: str
+    password: str = Field(min_length=1, max_length=128)
 
     @field_validator("email", mode="before")
     @classmethod

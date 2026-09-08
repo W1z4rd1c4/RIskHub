@@ -265,12 +265,14 @@ def register_exception_handlers(app: FastAPI) -> None:
 
 
 def register_middleware(app: FastAPI, settings: Settings) -> None:
+    from app.middleware.auth_body_limit import AuthBodyLimitMiddleware
     from app.middleware.language import LanguageMiddleware
     from app.middleware.logging_context import LoggingContextMiddleware
     from app.middleware.rate_limit import RateLimitMiddleware
     from app.middleware.security_headers import SecurityHeadersMiddleware
     from app.middleware.security_protocol import ProtocolGuardMiddleware
 
+    app.add_middleware(AuthBodyLimitMiddleware)
     app.add_middleware(ProtocolGuardMiddleware)
     app.add_middleware(
         RateLimitMiddleware,

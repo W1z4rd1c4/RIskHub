@@ -271,7 +271,7 @@ def test_identity_stack_gates_preserve_push_and_blocking_semantics():
         check for check in payload["checks"]
         if Path(check["workflow"]).name.startswith("identity-")
     ]
-    assert len(identity_checks) == 2
+    assert len(identity_checks) == 4
     for check in identity_checks:
         assert check["continue_on_error"] is False
         assert check["required_on_protected_main"] is False

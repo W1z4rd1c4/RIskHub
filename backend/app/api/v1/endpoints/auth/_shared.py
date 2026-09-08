@@ -11,6 +11,7 @@ from starlette.responses import Response
 
 from app.core.config import Settings
 from app.core.datetime_utils import coerce_utc, utc_now
+from app.core.local_session import LocalSessionContext, native_identity_selected
 from app.core.permissions import get_effective_permissions, get_scope_label, is_platform_admin
 from app.core.security import create_access_token
 from app.core.tokens import (
@@ -66,7 +67,12 @@ def _build_token_response(
     settings: Settings,
     session_expires_at: datetime | None = None,
     post_login_redirect_to: str | None = None,
+    local_context: LocalSessionContext | None = None,
 ) -> TokenResponse:
+    if native_identity_selected(settings) and local_context is None:
+        raise ValueError("Completed native MFA context is required")
+    if local_context is not None:
+        session_expires_at = local_context.expires_at
     effective_permissions = get_effective_permissions(user)
     scope_label = get_scope_label(user)
     user_data = UserBrief(
@@ -84,7 +90,12 @@ def _build_token_response(
         scope_label=scope_label,
     )
     access_token = create_access_token(
-        data={"sub": user.email, "user_id": user.id, "token_version": user.token_version},
+        data={
+            "sub": user.email,
+            "user_id": user.id,
+            "token_version": user.token_version,
+            **(local_context.claims() if local_context else {}),
+        },
         expires_delta=_resolve_access_expires_delta(
             user=user,
             settings=settings,
@@ -110,7 +121,10 @@ async def _issue_refresh_session(
     refresh_jti: str | None = None,
     refresh_token_and_expiry: tuple[str, datetime] | None = None,
     issued_at: datetime | None = None,
+    local_context: LocalSessionContext | None = None,
 ) -> RefreshToken:
+    if native_identity_selected(settings) and local_context is None:
+        raise ValueError("Completed native MFA context is required")
     jti = refresh_jti or new_token_jti()
     if refresh_token_and_expiry is None:
         refresh_token, expires_at = create_refresh_token(
@@ -118,6 +132,8 @@ async def _issue_refresh_session(
             token_version=user.token_version,
             jti=jti,
             settings=settings,
+            local_context=local_context,
+            expires_at=local_context.expires_at if local_context else None,
         )
     else:
         refresh_token, expires_at = refresh_token_and_expiry
@@ -135,6 +151,11 @@ async def _issue_refresh_session(
         created_ip=get_request_client_ip(request, settings.trusted_proxies),
         user_agent=get_request_user_agent(request),
     )
+    if local_context is not None:
+        refresh_row.auth_method = "local_mfa"
+        refresh_row.authenticated_at = local_context.authenticated_at
+        refresh_row.factor_generation = local_context.factor_generation
+        refresh_row.installation_id = local_context.installation_id
     db.add(refresh_row)
     if rotated_from is not None:
         rotated_from.revoked_at = now

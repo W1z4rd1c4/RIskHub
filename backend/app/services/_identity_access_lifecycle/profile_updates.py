@@ -7,6 +7,7 @@ from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
+from app.core.local_session import native_identity_selected
 from app.core.security import get_password_hash, verify_password
 from app.core.user_query_options import user_selectinload_options
 from app.models import Role, User
@@ -45,6 +46,8 @@ async def create_user_profile(
     current_user: User,
     user_data: UserCreate,
 ) -> User:
+    if native_identity_selected(settings):
+        raise AuthorizationError("Use the invitation enrollment workflow", code="LOCAL_INVITATION_REQUIRED")
     if settings.auth_mode == "microsoft_sso":
         raise AuthorizationError(
             "Manual user creation is disabled in microsoft_sso mode. Use /api/v1/directory/users/{oid}/import."
@@ -97,6 +100,10 @@ async def update_user_profile(
     user_id: int,
     user_data: UserUpdate,
 ) -> User:
+    if native_identity_selected(settings) and "password" in user_data.model_fields_set:
+        raise AuthorizationError(
+            "Use the verified local credential workflow", code="LOCAL_CREDENTIAL_WORKFLOW_REQUIRED"
+        )
     password_field_provided = "password" in user_data.model_fields_set
     if settings.auth_mode == "microsoft_sso" and password_field_provided:
         raise AuthorizationError("Password updates are disabled in microsoft_sso mode.")
@@ -119,6 +126,10 @@ async def update_user_profile(
     if verified_credential is not None and verified_credential != (user.hashed_password, user.token_version):
         raise ConflictError("Account authority changed during password verification; retry with current state")
 
+    if native_identity_selected(settings) and user_data.email is not None and user_data.email != user.email:
+        raise AuthorizationError(
+            "Use the verified local credential workflow", code="LOCAL_CREDENTIAL_WORKFLOW_REQUIRED"
+        )
     if user_data.email and user_data.email != user.email:
         email_check = await db.execute(select(User).where(email_equals(User.email, user_data.email)))
         if email_check.scalar_one_or_none():

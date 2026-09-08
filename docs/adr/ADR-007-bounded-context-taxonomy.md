@@ -92,6 +92,7 @@ The full classification covers the 31 underscore-prefixed packages plus the `_mo
 | `_access_workflow` | Workflow-paired (`_identity_access_lifecycle`) | Identity workflow | `_bounded_context_workflow_pairs.toml` |
 | `_control_execution` | Workflow-paired (`_entity_mutation_lifecycle`) | Control execution | `_bounded_context_workflow_pairs.toml` |
 | `_deadline_execution` | Workflow-paired (`_kri_history`) | Deadline jobs | `_bounded_context_workflow_pairs.toml` |
+| `_local_auth` | Workflow-paired (`_auth_session_workflow`) | Native credential/factor lifecycle; common session authority retained | `_bounded_context_workflow_pairs.toml` |
 | `_auth_session_workflow` | Workflow-paired (`_auth_session`) | Session workflow | `_bounded_context_workflow_pairs.toml` |
 | `_risk_questionnaires` | Workflow-paired (`_vendor_governance`) | Questionnaire lifecycle | `_bounded_context_workflow_pairs.toml` |
 | `_vendor_workflow` | Workflow-paired (`_vendor_governance`) | Vendor workflow | `_bounded_context_workflow_pairs.toml` |
@@ -133,3 +134,16 @@ Rollback of this amendment removes this text. The TOMLs and the disjointness loc
 - `_bounded_context_cross_cutting.toml` enumerates cross-cutting packages and binds them to ADR-001 (capabilities) and ADR-008 (config-default SSOT) lock chains.
 - Per-allowlist atomicity is asserted by parsing each TOML file as a single contiguous list; entries spanning multiple files trigger lock failure.
 - Cross-reference: ADR-003 `DomainError` taxonomy governs adapter exception translation; ADR-001 governs `_authorization_capabilities` SSOT; ADR-008 governs the `_config` SSOT pattern.
+
+## Native credential lifecycle amendment (#197–#200)
+
+`_local_auth` is workflow-paired with `_auth_session_workflow`. It owns restricted
+credential/factor/grant transitions and encrypted delivery orchestration, not a
+new application-session model. The existing auth transaction boundary, User
+identity and shared JWT/refresh issuer remain authoritative. Its limited status
+projection serves the same lifecycle. `_bounded_context_workflow_pairs.toml`
+classifies the package; all disjointness and endpoint-commit locks remain intact.
+
+Cross-context invalidation acquires User then grant/factor/refresh state inside one
+caller-owned transaction. See `docs/security/identity-local-credentials.md` for the
+native context's exact lock order, expiry and recovery boundaries.

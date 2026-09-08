@@ -22,3 +22,8 @@ Canonical security policy and reporting documentation for RiskHub.
 - Release-parity gate reports may be tracked under `docs/security/reports/`. Generated `tests/results/release-parity-audit-<run-id>/` evidence is gitignored run output; its uploaded copy is retained by the release workflow for 14 days. Recorded commit/tree identities and artifact hashes establish which bytes were verified, but they do not make expired artifact bytes retrievable.
 - Authorization-sensitive code changes must update the authorization/capability contract and pass `python3 scripts/security/validate_authz_capability_contract.py`.
 - Keep this README updated when responsibilities or structure in this folder change.
+
+## Native identity delivery
+
+[Native credentials and MFA](identity-local-credentials.md) documents group 2 inputs,
+proof/session boundaries, delivery, verification and the still-closed production gate.

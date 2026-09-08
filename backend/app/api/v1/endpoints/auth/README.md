@@ -13,6 +13,8 @@ API endpoint package for `auth` domain.
 - `config.py`
 - `csrf.py`
 - `demo.py`
+- `local.py` — native enrollment/factor/credential adapters, production release still gated
+- `_local_transport.py` — request protection and secret-safe validation
 - `logout.py`
 - `me.py`
 - `password.py`

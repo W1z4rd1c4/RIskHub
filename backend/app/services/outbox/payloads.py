@@ -75,8 +75,13 @@ class KriBreachDetectedPayload(OutboxPayloadModel):
     message: str
 
 
+class LocalAuthDeliveryPayload(OutboxPayloadModel):
+    delivery_id: str
+
+
 OutboxPayload: TypeAlias = (
-    ApprovalRequestCreatedPayload
+    LocalAuthDeliveryPayload
+    | ApprovalRequestCreatedPayload
     | ApprovalRequestResolvedPayload
     | ApprovalRequestCancelledPayload
     | ApprovalRequestExpiredPayload
@@ -91,6 +96,7 @@ OutboxPayload: TypeAlias = (
 
 
 OUTBOX_PAYLOAD_MODELS: dict[str, type[OutboxPayloadModel]] = {
+    "local_auth.deliver": LocalAuthDeliveryPayload,
     "approval.request_created": ApprovalRequestCreatedPayload,
     "approval.request_resolved": ApprovalRequestResolvedPayload,
     "approval.request_cancelled": ApprovalRequestCancelledPayload,

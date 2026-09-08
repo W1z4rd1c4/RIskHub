@@ -9,20 +9,24 @@ from starlette.responses import Response
 from app.core.config import Settings, get_settings
 from app.core.email import email_equals
 from app.core.identity_policy import can_authenticate_user
+from app.core.local_session import native_identity_selected
 from app.core.logging import get_logger
 from app.core.security import verify_password_or_dummy
 from app.core.user_query_options import user_selectinload_options
 from app.db.session import get_db
 from app.models import User
 from app.schemas.auth import LoginRequest, TokenResponse
+from app.schemas.local_auth import LocalAuthChallenge
 from app.services._auth_session_workflow import commit_failed_password_login, commit_successful_password_login
 from app.services._auth_session_workflow.authority import lock_session_user
+from app.services._local_auth.factors import begin_password_login
 from app.services.account_lockout_service import AccountLockoutBackendError
 
+from ._local_transport import SafeAuthRoute, establish_browser, native_context
 from ._request_protection import validate_request_origin
 from ._shared import _build_token_response, _issue_refresh_session
 
-router = APIRouter()
+router = APIRouter(route_class=SafeAuthRoute)
 logger = get_logger("auth.password")
 _T = TypeVar("_T")
 
@@ -51,7 +55,9 @@ async def _run_lockout_operation(
         return fallback
 
 
-@router.post("/login", response_model=TokenResponse)
+@router.post(
+    "/login", response_model=TokenResponse | LocalAuthChallenge, responses={202: {"model": LocalAuthChallenge}}
+)
 async def login(
     credentials: LoginRequest,
     request: Request,
@@ -76,6 +82,15 @@ async def login(
         raise HTTPException(status_code=403, detail="Password login is disabled. Use single sign-on (SSO).")
     if forbidden_response := validate_request_origin(request, settings):
         return forbidden_response
+
+    if native_identity_selected(settings):
+        ctx = await native_context(request, db=db, settings=settings)
+        browser = establish_browser(request, response, settings)
+        challenge_result = await begin_password_login(
+            db, ctx, email=credentials.email, password=credentials.password, browser=browser
+        )
+        response.status_code = 202
+        return challenge_result
 
     # Check if account is locked due to too many failed attempts
     account_lockout = request.app.state.account_lockout

@@ -22,16 +22,16 @@ class LocalRequest(BaseModel):
 
 
 class EnrollmentStartRequest(LocalRequest):
-    grant: SecretStr
-    password: SecretStr
+    grant: SecretStr = Field(min_length=1, max_length=1024)
+    password: SecretStr = Field(min_length=1, max_length=128)
 
 
 class ChallengeRequest(LocalRequest):
-    challenge: SecretStr
+    challenge: SecretStr = Field(min_length=1, max_length=1024)
 
 
 class FactorVerifyRequest(ChallengeRequest):
-    code: SecretStr
+    code: SecretStr = Field(min_length=1, max_length=1024)
     method: Literal["totp", "recovery_code"] = "totp"
 
 
@@ -40,17 +40,17 @@ class ResetRequest(LocalRequest):
 
 
 class ResetCompleteRequest(LocalRequest):
-    grant: SecretStr
-    password: SecretStr
+    grant: SecretStr = Field(min_length=1, max_length=1024)
+    password: SecretStr = Field(min_length=1, max_length=128)
 
 
 class RecentAuthenticationRequest(LocalRequest):
-    password: SecretStr
-    factor: SecretStr
+    password: SecretStr = Field(min_length=1, max_length=128)
+    factor: SecretStr = Field(min_length=1, max_length=1024)
     method: Literal["totp", "recovery_code"] = "totp"
     target_user_id: UserId
     operation: Literal["password_change", "email_change", "factor_replace", "recovery_codes", "assisted_recovery"]
-    intended_password: SecretStr | None = None
+    intended_password: SecretStr | None = Field(default=None, max_length=128)
     intended_email: EmailStr | None = None
     intended_recovery_operation: (
         Literal["factor_recovery", "credential_and_factor_recovery", "verified_address_recovery"] | None
@@ -69,22 +69,22 @@ class RecentAuthenticationRequest(LocalRequest):
 
 
 class PasswordChangeRequest(LocalRequest):
-    recent_auth_proof: SecretStr
-    password: SecretStr
+    recent_auth_proof: SecretStr = Field(min_length=1, max_length=1024)
+    password: SecretStr = Field(min_length=1, max_length=128)
 
 
 class EmailChangeRequest(LocalRequest):
-    recent_auth_proof: SecretStr
+    recent_auth_proof: SecretStr = Field(min_length=1, max_length=1024)
     new_email: EmailStr
 
 
 class EmailChangeCompleteRequest(LocalRequest):
-    recent_auth_proof: SecretStr
-    grant: SecretStr
+    recent_auth_proof: SecretStr = Field(min_length=1, max_length=1024)
+    grant: SecretStr = Field(min_length=1, max_length=1024)
 
 
 class FactorReplacementRequest(LocalRequest):
-    recent_auth_proof: SecretStr
+    recent_auth_proof: SecretStr = Field(min_length=1, max_length=1024)
 
 
 class InvitationRequest(LocalRequest):
@@ -96,7 +96,7 @@ class InvitationRequest(LocalRequest):
 
 
 class AssistedRecoveryRequest(LocalRequest):
-    recent_auth_proof: SecretStr
+    recent_auth_proof: SecretStr = Field(min_length=1, max_length=1024)
     incident_reference: str = Field(min_length=1, max_length=255)
     verification_method: str = Field(min_length=1, max_length=255)
     reason: str = Field(min_length=1, max_length=2000)
@@ -133,12 +133,20 @@ class InvitationResponse(BaseModel):
     delivery_status: Literal["pending", "sent", "failed"]
 
 
+class LocalIdentityStatusResponse(BaseModel):
+    user_id: UserId
+    enrollment_state: Literal["invited", "password_set", "enrolled"] | None
+    local_suspended: bool
+    is_active: bool
+    delivery_status: Literal["pending", "sent", "failed", "expired", "cancelled"] | None
+
+
 class ReasonRequest(LocalRequest):
     reason: str = Field(min_length=1, max_length=2000)
 
 
 class RecoveryStartRequest(LocalRequest):
-    grant: SecretStr
+    grant: SecretStr = Field(min_length=1, max_length=1024)
     current_password: SecretStr | None = None
     new_password: SecretStr | None = None
 
@@ -160,10 +168,20 @@ class LocalEndpointContract:
     authentication: str
     owner_issue: int
     status_code: int = 200
+    method: Literal["get", "post"] = "post"
 
 
 # This catalogue is documentation/schema input, never a dynamic route registry.
 LOCAL_ENDPOINT_CONTRACTS = (
+    LocalEndpointContract(
+        "/users/{user_id}/local-auth/status",
+        LocalRequest,
+        LocalIdentityStatusResponse,
+        "platform admin",
+        198,
+        200,
+        "get",
+    ),
     LocalEndpointContract(
         "/auth/local/enrollment/start", EnrollmentStartRequest, LocalAuthChallenge, "invitation grant", 198, 202
     ),

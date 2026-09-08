@@ -30,6 +30,11 @@ class RefreshToken(Base):
     revoked_reason: Mapped[str | None] = mapped_column(String(100), nullable=True)
     replaced_by_jti: Mapped[str | None] = mapped_column(String(64), nullable=True)
 
+    auth_method: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    authenticated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    factor_generation: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    installation_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
     created_ip: Mapped[str | None] = mapped_column(String(64), nullable=True)
     user_agent: Mapped[str | None] = mapped_column(String(512), nullable=True)
 
