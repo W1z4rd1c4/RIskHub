@@ -20,7 +20,7 @@ jobs:
         with:
           ref: f521ca47c885cc2971c023d2084b914fb5a37a6a
           persist-credentials: false
-      - name: Materialize the verified non-workflow source tree only
+      - name: Materialize fixed source and workflow blobs without updating refs
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -30,16 +30,18 @@ jobs:
           import json
           import lzma
           import os
+          import pathlib
           import subprocess
           import urllib.request
 
           BASE = '77a368a26f7c1be6d8589681c1d1e24275d90c6f'
           EXPECTED = '2024588dc9623a156d90af98a73b11090c98256a'
+          FINAL = '52432f7174dadf5ebb0f6b9f5b936a7329433a11'
           BLOB = '931440e6f0d04c3a5a0dd2e0a52dd1d875e5581c'
           API = 'https://api.github.com/repos/W1z4rd1c4/RiskHub'
 
           def api(path, payload=None):
-              if path not in ('/git/blobs/' + BLOB, '/git/trees'):
+              if path not in ('/git/blobs/' + BLOB, '/git/blobs', '/git/trees'):
                   raise RuntimeError('Unapproved operation')
               data = None if payload is None else json.dumps(payload).encode()
               request = urllib.request.Request(API + path, data=data, headers={
@@ -72,13 +74,39 @@ jobs:
           tree = []
           for path in paths:
               entry = git('ls-files', '--stage', '--', path).decode().split()
-              if entry[0] != '100644' or entry[2] != '0':
+              if entry[0] not in ('100644', '100755') or entry[2] != '0':
                   raise RuntimeError('Unexpected file mode or index stage')
               content = git('cat-file', 'blob', entry[1]).decode('utf-8')
-              tree.append({'path': path, 'mode': '100644', 'type': 'blob', 'content': content})
+              tree.append({'path': path, 'mode': entry[0], 'type': 'blob', 'content': content})
           result = api('/git/trees', {'base_tree': BASE, 'tree': tree})
           if result['sha'] != EXPECTED:
               raise RuntimeError('Published object tree mismatch')
           print('VERIFIED_NONWORKFLOW_TREE=' + result['sha'])
-          print('No application execution, commit creation, or ref update.')
+
+          workflows = ['backend-postgres.yml', 'e2e.yml', 'frontend-container-gate-contract.yml', 'identity-foundations.yml', 'lint.yml', 'maintenance-governance.yml', 'security.yml', 'startup-smoke-pr.yml']
+          for name in workflows:
+              path = pathlib.Path('.github/workflows') / name
+              content = path.read_text()
+              old = '  pull_request:\n    branches: [main, develop]'
+              if old in content:
+                  content = content.replace(old, '  pull_request:\n    branches: [main, develop, "feat/identity-group-*"]', 1)
+              else:
+                  content = content.replace('  pull_request:\n    branches: [main]', '  pull_request:\n    branches: [main, "feat/identity-group-*"]', 1)
+              if name == 'e2e.yml':
+                  content = content.replace('          alembic upgrade head\n          uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../prod-smoke-backend.log', '          alembic upgrade head\n          # The disposable database is fresh; use the real operator binding path.\n          python -m scripts.identity_installation initialize --maintenance-confirmed --source "ci-production-smoke"\n          python -m scripts.identity_installation verify\n          uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../prod-smoke-backend.log')
+              if name == 'identity-foundations.yml':
+                  content = content.replace('pytest ../tests/backend/pytest/test_identity_foundations.py', 'pytest ../tests/backend/pytest/test_identity_authority_loading.py ../tests/backend/pytest/test_users.py ../tests/backend/pytest/test_identity_foundations.py')
+              path.write_text(content)
+              git('add', '--', str(path))
+          if git('write-tree').decode().strip() != FINAL:
+              raise RuntimeError('Workflow changes differ from tested candidate')
+          for name in workflows:
+              path = '.github/workflows/' + name
+              sha = git('hash-object', path).decode().strip()
+              result = api('/git/blobs', {'content': pathlib.Path(path).read_text(), 'encoding': 'utf-8'})
+              if result['sha'] != sha:
+                  raise RuntimeError('Workflow blob mismatch')
+              print(path + ' ' + sha)
+          print('VERIFIED_FINAL_TREE=' + FINAL)
+          print('No application execution, workflow-tree publication, commit creation, or ref update.')
           PY
