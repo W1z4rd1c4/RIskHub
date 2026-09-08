@@ -33,7 +33,8 @@ async def local_admin(db: AsyncSession, actor: User) -> User:
 
 async def invite_user(db: AsyncSession, ctx: NativeContext, actor: User, data: InvitationRequest) -> InvitationResponse:
     email = normalize_email(str(data.email))
-    assert email is not None
+    if email is None:
+        raise ValidationError("Invalid email", status_code=422)
     await ctx.limiter.require("invite-target", email, 3, 3600)
     await ctx.limiter.require("invite-actor", str(actor.id), 30, 3600)
     async with atomic_local_work(db):

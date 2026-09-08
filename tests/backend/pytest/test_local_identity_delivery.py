@@ -188,6 +188,7 @@ def test_key_material_is_permission_guarded_and_context_bound(tmp_path):
     import base64
     import json
     import secrets
+
     from app.core.exceptions import ServiceFailure
 
     path = tmp_path / "keys.json"

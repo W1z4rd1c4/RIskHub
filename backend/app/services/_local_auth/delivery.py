@@ -62,7 +62,8 @@ async def enqueue_mail(
     context = [ctx.installation_id, str(user.id), delivery_id, grant.id if grant else "notice"]
     key_id, encrypted = ctx.keys.encrypt("delivery", json.dumps(payload), context)
     expires = coerce_utc(grant.expires_at) if grant else utc_now() + timedelta(hours=24)
-    assert expires is not None
+    if expires is None:
+        raise unavailable()
     row = LocalAuthDelivery(
         id=delivery_id,
         user_id=user.id,
@@ -109,7 +110,8 @@ def send_smtp(settings: Settings, *, delivery_id: str, payload: dict) -> None:
             "Contact your administrator immediately if this was not you."
         )
     host = settings.local_smtp_host
-    assert host is not None
+    if host is None:
+        raise unavailable()
     connection: smtplib.SMTP
     if settings.local_smtp_security == "tls":
         connection = smtplib.SMTP_SSL(

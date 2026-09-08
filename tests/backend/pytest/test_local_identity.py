@@ -408,6 +408,7 @@ def test_offline_password_policy_integrity_and_operator_additions(
 
 def test_bcrypt_byte_limit_and_malformed_hashes():
     from pwdlib.hashers.bcrypt import BcryptHasher
+
     from app.core.security import verify_password_or_dummy
 
     encoded = BcryptHasher().hash("x" * 72)
@@ -427,8 +428,9 @@ def test_bcrypt_byte_limit_and_malformed_hashes():
 async def test_kdf_capacity_remains_reserved_when_request_cancelled():
     import asyncio
     import threading
-    from app.core.password_policy import run_password_work
+
     from app.core.exceptions import ServiceFailure
+    from app.core.password_policy import run_password_work
 
     release = threading.Event()
     entered = [threading.Event(), threading.Event()]
@@ -459,6 +461,7 @@ async def test_wrong_browser_wrong_purpose_expiry_and_enrollment_replay(
     native_context, client_factory, db_session, test_user, test_user_employee
 ):
     from datetime import timedelta
+
     from app.models import LocalAuthGrant
 
     user_id = await create_invitation(
@@ -634,7 +637,9 @@ async def test_full_auth_age_cannot_be_renewed_and_legacy_native_tokens_are_deni
     test_user_employee,
 ):
     from datetime import timedelta
+
     from freezegun import freeze_time
+
     from app.core.security import create_access_token
     from app.core.tokens import decode_refresh_token
 
@@ -809,6 +814,7 @@ async def test_sent_invitation_status_reports_expired_grant(
     native_context, client_factory, db_session, test_user, test_user_employee
 ):
     from datetime import timedelta
+
     from app.models import LocalAuthGrant
 
     user_id = await create_invitation(
@@ -833,3 +839,15 @@ async def test_sent_invitation_status_reports_expired_grant(
         status = await client.get(f"/api/v1/users/{user_id}/local-auth/status")
         assert status.status_code == 200, status.text
         assert status.json()["delivery_status"] == "expired"
+
+
+@pytest.mark.parametrize("operation", ["password_change", "email_change"])
+def test_missing_intent_is_rejected_without_relying_on_assert(operation):
+    from app.core.exceptions import AuthenticationError
+    from app.schemas.local_auth import RecentAuthenticationRequest
+    from app.services._local_auth.factors import intent_value
+
+    # Direct service callers must fail closed even if schema validation was bypassed.
+    data = RecentAuthenticationRequest.model_construct(operation=operation)
+    with pytest.raises(AuthenticationError):
+        intent_value(data)

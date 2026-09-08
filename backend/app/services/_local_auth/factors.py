@@ -250,10 +250,12 @@ async def verify_factor(
 
 def intent_value(data: RecentAuthenticationRequest) -> str:
     if data.operation == "password_change":
-        assert data.intended_password is not None
+        if data.intended_password is None:
+            raise invalid_proof()
         return data.intended_password.get_secret_value()
     if data.operation == "email_change":
-        assert data.intended_email is not None
+        if data.intended_email is None:
+            raise invalid_proof()
         return normalize_email(str(data.intended_email)) or ""
     return data.operation
 

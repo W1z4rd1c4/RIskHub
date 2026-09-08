@@ -3,8 +3,10 @@
 import base64
 import json
 import secrets
+
 import fakeredis.aioredis
 import pytest_asyncio
+
 from app.core.config import Settings
 from app.models import InstallationIdentity
 
