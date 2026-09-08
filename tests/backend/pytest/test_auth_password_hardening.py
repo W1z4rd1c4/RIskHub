@@ -151,7 +151,7 @@ async def test_password_login_rejects_unallowed_origin_before_issuing_cookies(cl
     _assert_no_session_cookies(response)
 
 
-def test_password_hashes_remain_bcrypt_compatible():
+def test_legacy_bcrypt_verifies_and_new_hashes_use_argon2id():
     """Hashes minted by the previous passlib[bcrypt] implementation must keep verifying."""
     passlib_era_hash = "$2b$12$jNEyM2QKA3984KXadjJTCOOindKtrnp77.y4JAKu/EdmhQj0b6oBG"
 
@@ -159,7 +159,7 @@ def test_password_hashes_remain_bcrypt_compatible():
     assert verify_password("wrong-password", passlib_era_hash) is False
 
     new_hash = get_password_hash("regression-password-123")
-    assert new_hash.startswith("$2b$")
+    assert new_hash.startswith("$argon2id$v=19$m=65536,t=3,p=1$")
     assert verify_password("regression-password-123", new_hash) is True
 
     assert verify_password_or_dummy("anything", None) is False

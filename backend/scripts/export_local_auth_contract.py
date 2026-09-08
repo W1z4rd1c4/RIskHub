@@ -81,8 +81,10 @@ def typescript_type(schema: dict[str, Any]) -> str:
         return " | ".join(typescript_type(part) for part in schema["anyOf"])
     kind = schema.get("type")
     if kind == "object":
-        if "properties" not in schema:
+        if not schema.get("properties"):
             value = schema.get("additionalProperties", {})
+            if value is False:
+                return "Record<string, never>"
             return f"Record<string, {typescript_type(value) if isinstance(value, dict) else 'unknown'}>"
         required = schema.get("required", [])
         fields = [

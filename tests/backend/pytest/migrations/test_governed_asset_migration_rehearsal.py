@@ -14,6 +14,8 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.engine import make_url
 
+from tests.backend.pytest.migrations.conftest import rehearsal_head_after
+
 ROOT = Path(__file__).resolve().parents[4]
 BACKEND = ROOT / "backend"
 TARGET_REVISION = "s8t9u0v1w2x3"
@@ -242,6 +244,7 @@ def test_governed_asset_migration_rehearses_zero_and_previous_head_to_head(
     source_url = os.environ.get("TEST_DATABASE_URL", "")
     if not source_url.startswith("postgresql"):
         pytest.skip("ADR-010 migration rehearsal requires PostgreSQL")
+    target_revision = rehearsal_head_after(TARGET_REVISION)
     database_name = f"riskhub_t86_rehearsal_{uuid4().hex[:12]}"
     quoted_name = '"' + database_name.replace('"', '""') + '"'
     target_url = (
@@ -274,13 +277,13 @@ def test_governed_asset_migration_rehearses_zero_and_previous_head_to_head(
             ]
         assert upgrade_path == expected_path
         current = _alembic(target_url, "current").stdout
-        assert f"{TARGET_REVISION} (head)" in current
+        assert f"{target_revision} (head)" in current
         heads = [
             line.strip()
             for line in _alembic(target_url, "heads").stdout.splitlines()
             if line.strip()
         ]
-        assert heads == [f"{TARGET_REVISION} (head)"]
+        assert heads == [f"{target_revision} (head)"]
         asyncio.run(
             _assert_governed_asset_head_contract(
                 target_url,
@@ -298,3 +301,13 @@ def test_governed_asset_migration_rehearses_zero_and_previous_head_to_head(
             )
         )
         asyncio.run(_database_command(source_url, f"DROP DATABASE {quoted_name}"))
+
+
+@pytest.mark.parametrize("required_revision", [PREVIOUS_HEAD, TARGET_REVISION])
+def test_rehearsal_head_keeps_required_revision_in_ancestry(required_revision: str) -> None:
+    assert rehearsal_head_after(required_revision)
+
+
+def test_rehearsal_head_rejects_missing_contract_revision() -> None:
+    with pytest.raises(AssertionError, match="Required revision .* is not an ancestor"):
+        rehearsal_head_after("not-a-contract-revision")

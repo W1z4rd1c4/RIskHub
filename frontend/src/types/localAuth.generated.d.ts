@@ -93,9 +93,7 @@ export type LocalIdentityStatusResponse = {
   delivery_status: "pending" | "sent" | "failed" | "expired" | "cancelled" | null;
 };
 
-export type LocalRequest = {
-
-};
+export type LocalRequest = Record<string, never>;
 
 export type MeCapabilities = {
   can_view_user_directory?: boolean;
