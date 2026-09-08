@@ -1715,9 +1715,9 @@ async def test_postgres_vendor_orphan_and_link_approval_serialize_in_both_orders
     first_locked = asyncio.Event()
     release_first = asyncio.Event()
     if deactivation_first:
-        from app.services._identity_access_lifecycle import profile_updates
+        from app.services import _identity_authority_lock
 
-        original = profile_updates.acquire_vendor_owner_identity_lock
+        original = _identity_authority_lock.acquire_vendor_owner_identity_lock
 
         async def paused_deactivation_lock(*args, **kwargs):
             await original(*args, **kwargs)
@@ -1725,7 +1725,7 @@ async def test_postgres_vendor_orphan_and_link_approval_serialize_in_both_orders
             await release_first.wait()
 
         monkeypatch.setattr(
-            profile_updates,
+            _identity_authority_lock,
             "acquire_vendor_owner_identity_lock",
             paused_deactivation_lock,
         )

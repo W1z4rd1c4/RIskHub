@@ -23,6 +23,8 @@ export interface AccessUserRead {
     email: string;
     name: string;
     is_active: boolean;
+    local_suspended?: boolean;
+    local_enrollment_state?: string | null;
     role_id: number;
     role: {
         id: number;
@@ -56,6 +58,9 @@ export interface AccessUserCapabilities {
     can_change_active_status: boolean;
     can_break_glass_enable: boolean;
     can_revoke_sessions: boolean;
+    can_resume?: boolean;
+    active_status_block_reason?: string | null;
+    directory_owned_fields?: string[];
 }
 
 export interface AccessUserUpdate {

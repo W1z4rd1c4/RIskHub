@@ -23,6 +23,7 @@ from app.services._access_workflow import (
     resolve_department_access_roster_target,
 )
 from app.services._identity_access_lifecycle import update_access_profile
+from app.services._identity_access_lifecycle.policy import effective_platform_admin_ids
 
 router = APIRouter()
 
@@ -61,12 +62,20 @@ def _require_access_user_write(user: User) -> None:
         )
 
 
-def _build_access_user_read(user: User, *, current_user: User) -> AccessUserRead:
+def _build_access_user_read(
+    user: User,
+    *,
+    current_user: User,
+    settings: Settings | None = None,
+    effective_admin_ids: set[int] | None = None,
+) -> AccessUserRead:
     return AccessUserRead(
         id=user.id,
         email=user.email,
         name=user.name,
         is_active=user.is_active,
+        local_suspended=user.local_suspended,
+        local_enrollment_state=user.local_enrollment_state,
         role_id=user.role_id,
         role=RoleRead.model_validate(user.role),
         department_id=user.department_id,
@@ -84,7 +93,9 @@ def _build_access_user_read(user: User, *, current_user: User) -> AccessUserRead
         directory_sync_status=user.directory_sync_status,
         deprovisioned_at=user.deprovisioned_at,
         deprovision_reason=user.deprovision_reason,
-        capabilities=access_user_capabilities(current_user, user),
+        capabilities=access_user_capabilities(
+            current_user, user, settings=settings, effective_admin_ids=effective_admin_ids
+        ),
     )
 
 
@@ -107,6 +118,7 @@ async def list_access_users(
     is_privileged: bool | None = None,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """List users for access management with scope filters."""
     _require_privileged(current_user)
@@ -129,7 +141,11 @@ async def list_access_users(
 
     result = await db.execute(query)
     users = result.scalars().all()
-    return [_build_access_user_read(user, current_user=current_user) for user in users]
+    admin_ids = await effective_platform_admin_ids(db, settings=settings) if is_platform_admin(current_user) else None
+    return [
+        _build_access_user_read(user, current_user=current_user, settings=settings, effective_admin_ids=admin_ids)
+        for user in users
+    ]
 
 
 @router.get("/users/my-department", response_model=list[AccessUserRead])
@@ -137,6 +153,7 @@ async def list_department_access_users(
     department_id: int | None = None,
     current_user: User = Depends(deps.get_current_user),
     db: AsyncSession = Depends(get_db),
+    settings: Settings = Depends(get_settings),
 ):
     """
     List users in current user's department with their access info.
@@ -155,7 +172,11 @@ async def list_department_access_users(
 
     result = await db.execute(query)
     users = result.scalars().all()
-    return [_build_access_user_read(user, current_user=current_user) for user in users]
+    admin_ids = await effective_platform_admin_ids(db, settings=settings) if is_platform_admin(current_user) else None
+    return [
+        _build_access_user_read(user, current_user=current_user, settings=settings, effective_admin_ids=admin_ids)
+        for user in users
+    ]
 
 
 @router.get("/roles", response_model=list[RoleWithPermissions])
@@ -205,4 +226,7 @@ async def update_access_user(
         user_id=user_id,
         user_data=update_data,
     )
-    return _build_access_user_read(updated_user, current_user=current_user)
+    admin_ids = await effective_platform_admin_ids(db, settings=settings) if is_platform_admin(current_user) else None
+    return _build_access_user_read(
+        updated_user, current_user=current_user, settings=settings, effective_admin_ids=admin_ids
+    )

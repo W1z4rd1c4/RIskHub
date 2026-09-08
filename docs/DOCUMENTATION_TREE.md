@@ -178,3 +178,9 @@ Latest audit report location pattern:
 
 - `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.json`
 - `tests/results/docs/docs-tree-audit-<timestamp>/docs-tree-audit.md`
+
+### Identity foundations (group 1)
+
+- [ADR-018](./adr/ADR-018-identity-foundations.md)
+- [Developer/operator handoff](./security/identity-foundations.md)
+- [Reserved local API contract](./security/identity-local-auth.openapi.json)

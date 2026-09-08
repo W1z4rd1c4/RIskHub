@@ -7,9 +7,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.core.activity_logger import log_activity
+from app.core.identity_policy import AUTHORITY_FIELDS
 from app.core.user_query_options import user_selectinload_options
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
+from app.services._auth_session_workflow.authority import invalidate_user_sessions
 from app.services.transaction_boundary import commit_service_boundary
 
 
@@ -23,6 +25,17 @@ async def log_user_update_and_commit(
     include_permissions: bool = False,
     log_when_empty: bool = False,
 ) -> User:
+    if AUTHORITY_FIELDS.intersection(changes):
+        reason = "identity_access_changed"
+        revoked = await invalidate_user_sessions(db=db, user=user, reason=reason)
+        changes["session_authority"] = {
+            "old": None,
+            "new": {
+                "reason": reason,
+                "revoked_sessions": revoked,
+                "token_version": user.token_version,
+            },
+        }
     if changes or log_when_empty:
         await log_activity(
             db,

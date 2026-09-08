@@ -9,8 +9,10 @@ from starlette.requests import Request
 
 from app.core.config import Settings
 from app.core.datetime_utils import utc_now
+from app.core.identity_policy import can_authenticate_user
 from app.core.tokens import get_sso_challenge_cookie
 from app.schemas.auth import SsoExchangeRequest, SsoStartRequest, SsoStartResponse
+from app.services._auth_session_workflow.authority import lock_session_user
 from app.services.sso_challenge_store import SsoChallenge
 from app.services.sso_token_service import VerifiedIdentity
 
@@ -112,9 +114,7 @@ async def _consume_sso_challenge(
         )
 
     if not identity.nonce:
-        await log_failed_sso(
-            db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce missing"
-        )
+        await log_failed_sso(db, entity_name=identity.email or "unknown", description="Failed SSO login: nonce missing")
         return None, _challenge_failure(
             status_code=HTTPStatus.UNAUTHORIZED,
             code="SSO_NONCE_MISSING",
@@ -241,6 +241,19 @@ async def resolve_sso_exchange(
             clear_challenge_cookie=True,
         )
 
+    expected_version = user.token_version
+    user = await lock_session_user(db, user_id=user.id)
+    if user is None or user.token_version != expected_version:
+        return SsoExchangeResolution(
+            outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
+            identity=identity,
+            failure=SsoFailure(
+                status_code=HTTPStatus.UNAUTHORIZED,
+                detail="Session authority changed; sign in again",
+                code="SSO_AUTHORITY_CHANGED",
+            ),
+            clear_challenge_cookie=True,
+        )
     profile_sync_error = await sync_sso_user_profile(db, user=user, identity=identity)
     if profile_sync_error is not None:
         return SsoExchangeResolution(
@@ -251,7 +264,7 @@ async def resolve_sso_exchange(
             clear_challenge_cookie=True,
         )
 
-    if not user.is_active:
+    if not can_authenticate_user(user, settings=settings):
         return SsoExchangeResolution(
             outcome=SsoSessionOutcome(status="blocked", cookie_plan=SessionCookiePlan(action="none")),
             user=user,

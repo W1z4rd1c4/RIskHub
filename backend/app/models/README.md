@@ -34,3 +34,5 @@ Mixin inventory:
   archivable.
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+- `installation_identity.py`: explicit singleton deployment identity binding.

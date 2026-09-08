@@ -2,7 +2,7 @@
 
 from typing import Optional
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 from app.core.datetime_utils import UtcAwareDatetime
 from app.core.email import normalize_email
@@ -38,6 +38,8 @@ class AccessUserRead(BaseModel):
     email: str
     name: str
     is_active: bool
+    local_suspended: bool = False
+    local_enrollment_state: str | None = None
     role_id: int
     role: RoleRead
     department_id: Optional[int] = None
@@ -70,6 +72,9 @@ class AccessUserCapabilities(BaseModel):
     can_change_active_status: bool
     can_break_glass_enable: bool
     can_revoke_sessions: bool
+    can_resume: bool = False
+    active_status_block_reason: str | None = None
+    directory_owned_fields: list[str] = Field(default_factory=list)
 
 
 class AccessUserUpdate(BaseModel):

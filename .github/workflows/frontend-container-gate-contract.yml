@@ -2,7 +2,7 @@ name: Frontend Container Gate Contract
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "feat/identity-group-*"]
     paths:
       - '.github/workflows/frontend-container-gate-contract.yml'
       - '.github/workflows/security.yml'

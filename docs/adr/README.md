@@ -21,3 +21,5 @@ This directory records architecture decisions that should not be re-litigated by
 - [ADR-015 Frontend Design-System Foundation](./ADR-015-frontend-design-system-foundation.md)
 - [ADR-016 Governed Mutation Proposal and Impact-Lock Contract](./ADR-016-governed-mutation-proposals.md)
 - [ADR-017 Retained Compatibility Surfaces](./ADR-017-retained-compatibility-surfaces.md)
+
+- [ADR-018 — Deployment identity foundations](./ADR-018-identity-foundations.md): group-1 binding, eligibility, authority and reserved local contracts; native production remains gated.

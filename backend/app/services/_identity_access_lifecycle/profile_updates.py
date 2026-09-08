@@ -6,22 +6,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.activity_logger import build_change_set, log_activity
 from app.core.config import Settings
 from app.core.email import email_equals
-from app.core.exceptions import AuthorizationError, NotFoundError, ValidationError
-from app.core.security import get_password_hash
+from app.core.exceptions import AuthorizationError, ConflictError, NotFoundError, ValidationError
+from app.core.security import get_password_hash, verify_password
 from app.core.user_query_options import user_selectinload_options
 from app.models import Role, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas import UserCreate, UserUpdate
-from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
+from app.services._identity_authority_lock import lock_identity_transition
 from app.services._org_chart import (
     acquire_org_chart_lock,
     clear_manager_references_for_inactive_user,
     validate_dept_manager_dept_change,
     validate_no_manager_cycle,
 )
-from app.services._process_owner_lock import acquire_process_owner_identity_lock
-from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
-from app.services._vendor_owner_lock import acquire_vendor_owner_identity_lock
 from app.services.transaction_boundary import commit_service_boundary
 
 from .ciso_stewardship import (
@@ -32,10 +29,12 @@ from .ciso_stewardship import (
 from .execution import log_user_update_and_commit
 from .policy import (
     ensure_directory_reenable_allowed,
+    ensure_platform_admin_survives,
     ensure_remaining_global_privileged_user,
     ensure_role_change_keeps_privileged_access,
     ensure_sso_local_field_update_allowed,
     is_global_privileged_user,
+    prepare_manual_activity_update,
 )
 
 
@@ -62,6 +61,7 @@ async def create_user_profile(
         department_id=user_data.department_id,
         manager_id=user_data.manager_id,
         is_active=user_data.is_active,
+        local_suspended=not user_data.is_active,
         hashed_password=get_password_hash(user_data.password),
     )
 
@@ -97,10 +97,27 @@ async def update_user_profile(
     user_id: int,
     user_data: UserUpdate,
 ) -> User:
-    result = await db.execute(select(User).where(User.id == user_id))
-    user = result.scalar_one_or_none()
-    if not user:
-        raise NotFoundError("User not found")
+    password_field_provided = "password" in user_data.model_fields_set
+    if settings.auth_mode == "microsoft_sso" and password_field_provided:
+        raise AuthorizationError("Password updates are disabled in microsoft_sso mode.")
+
+    # Compare/hash before locks. A concurrent reset must not be overwritten by
+    # the result of verification against an older credential.
+    password_hash = None
+    verified_credential = None
+    if user_data.password is not None:
+        snapshot = (
+            await db.execute(select(User.hashed_password, User.token_version).where(User.id == user_id))
+        ).one_or_none()
+        if snapshot is None:
+            raise NotFoundError("User not found")
+        verified_credential = (snapshot.hashed_password, snapshot.token_version)
+        unchanged = bool(snapshot.hashed_password) and verify_password(user_data.password, snapshot.hashed_password)
+        if not unchanged:
+            password_hash = get_password_hash(user_data.password)
+    user = await lock_identity_transition(db, user_id=user_id, actor=current_user)
+    if verified_credential is not None and verified_credential != (user.hashed_password, user.token_version):
+        raise ConflictError("Account authority changed during password verification; retry with current state")
 
     if user_data.email and user_data.email != user.email:
         email_check = await db.execute(select(User).where(email_equals(User.email, user_data.email)))
@@ -108,11 +125,7 @@ async def update_user_profile(
             raise ValidationError("Email already registered")
 
     update_data = user_data.model_dump(exclude_unset=True)
-    password_field_provided = "password" in update_data  # gitleaks:allow
-    password = update_data.pop("password", None)  # gitleaks:allow
-
-    if settings.auth_mode == "microsoft_sso" and password_field_provided:
-        raise AuthorizationError("Password updates are disabled in microsoft_sso mode.")
+    update_data.pop("password", None)
 
     ensure_sso_local_field_update_allowed(
         settings=settings,
@@ -122,26 +135,8 @@ async def update_user_profile(
     )
     ensure_directory_reenable_allowed(user=user, update_data=update_data)
 
-    changes_steward_identity = (
-        update_data.get("is_active") is False
-        or ("role_id" in update_data and update_data["role_id"] != user.role_id)
-    )
-    if changes_steward_identity:
-        await acquire_threat_steward_identity_lock(db, user_id=user.id)
-        if update_data.get("is_active") is False:
-            await acquire_process_owner_identity_lock(db, user_id=user.id)
-            await acquire_asset_owner_identity_lock(db, user_id=user.id)
-            await acquire_vendor_owner_identity_lock(db, user_id=user.id)
-        user = (
-            await db.execute(
-                select(User)
-                .options(*user_selectinload_options(include_permissions=True))
-                .where(User.id == user.id)
-                .execution_options(populate_existing=True)
-            )
-        ).scalar_one()
-
     removes_ciso_stewardship = False
+    new_role = None
     if "role_id" in update_data:
         new_role_id = update_data["role_id"]
         if new_role_id != user.role_id:
@@ -160,16 +155,20 @@ async def update_user_profile(
                 user=user,
                 new_role=new_role,
             )
-            await ensure_role_change_keeps_privileged_access(
-                db,
-                current_user=current_user,
-                user=user,
-                new_role=new_role,
-            )
+
+    prepare_manual_activity_update(user=user, update_data=update_data, settings=settings)
+    await ensure_platform_admin_survives(db, user=user, update_data=update_data, settings=settings)
+    if new_role is not None:
+        await ensure_role_change_keeps_privileged_access(
+            db,
+            current_user=current_user,
+            user=user,
+            new_role=new_role,
+        )
 
     extra_changes: dict[str, dict[str, object]] = {}
-    if password is not None:
-        user.hashed_password = get_password_hash(password)
+    if password_hash is not None:
+        user.hashed_password = password_hash
         extra_changes["password_changed"] = {"old": None, "new": True}
 
     is_deactivating = user.is_active is True and update_data.get("is_active") is False
@@ -206,6 +205,5 @@ async def update_user_profile(
         user=user,
         current_user=current_user,
         changes=changes or {},
-        description="Password updated" if password is not None and not update_data else None,
-        log_when_empty=True,
+        description="Password updated" if password_hash is not None and not update_data else None,
     )

@@ -22,7 +22,11 @@ from app.core.logging import (
     reconfigure_log_rotation,
 )
 from app.core.otel import configure_opentelemetry
-from app.core.production_contract import PRODUCTION_INVARIANTS
+from app.core.production_contract import (
+    PRODUCTION_INVARIANTS,
+    enforce_identity_release_admission,
+    resolve_identity_profile,
+)
 from app.core.scheduler_jobs import resolve_process_worker_count
 from app.core.scheduler_runtime import configure_scheduler, start_scheduler_async, stop_scheduler_async
 from app.core.schema_guard import enforce_schema_head
@@ -96,6 +100,12 @@ def validate_settings_for_runtime(settings: Settings) -> None:
             "FATAL: ALLOWED_HOSTS cannot include wildcard entries when DEBUG=false. "
             "Set explicit production hostnames."
         )
+    if settings.auth_mode == "password":
+        # A valid future tuple is not permission to expose incomplete local auth.
+        try:
+            enforce_identity_release_admission(resolve_identity_profile(settings))
+        except ValueError as exc:
+            raise RuntimeError(f"FATAL: {exc}") from exc
     if settings.auth_mode != invariant_map["AUTH_MODE"].required_value:
         raise RuntimeError(f"FATAL: AUTH_MODE must be '{invariant_map['AUTH_MODE'].required_value}' when DEBUG=false.")
     if not settings.entra_tenant_id or not settings.entra_client_id:
@@ -104,44 +114,35 @@ def validate_settings_for_runtime(settings: Settings) -> None:
         )
     required_directory_provider = invariant_map["DIRECTORY_PROVIDER"].required_value
     if settings.directory_provider != required_directory_provider:
-        raise RuntimeError(
-            "FATAL: DIRECTORY_PROVIDER must be "
-            f"'{required_directory_provider}' when DEBUG=false."
-        )
+        raise RuntimeError("FATAL: DIRECTORY_PROVIDER must be " f"'{required_directory_provider}' when DEBUG=false.")
     if settings.ad_emulator_base_url:
         raise RuntimeError("FATAL: AD_EMULATOR_BASE_URL must be unset when DEBUG=false.")
     if settings.entra_confidential_credential is None:
         raise RuntimeError("FATAL: An Entra Graph confidential credential is required when DEBUG=false.")
     jit_required_value = invariant_map["ENTRA_JIT_PROVISIONING_ENABLED"].required_value
     if settings.entra_jit_provisioning_enabled:
-        raise RuntimeError(
-            "FATAL: ENTRA_JIT_PROVISIONING_ENABLED must be "
-            f"{jit_required_value} when DEBUG=false."
-        )
+        raise RuntimeError("FATAL: ENTRA_JIT_PROVISIONING_ENABLED must be " f"{jit_required_value} when DEBUG=false.")
     email_link_required_value = invariant_map["AUTH_SSO_ALLOW_EMAIL_LINK"].required_value
     if settings.auth_sso_allow_email_link:
-        raise RuntimeError(
-            "FATAL: AUTH_SSO_ALLOW_EMAIL_LINK must be "
-            f"{email_link_required_value} when DEBUG=false."
-        )
+        raise RuntimeError("FATAL: AUTH_SSO_ALLOW_EMAIL_LINK must be " f"{email_link_required_value} when DEBUG=false.")
     refresh_grace_required_value = invariant_map["REFRESH_TOKEN_MIGRATION_GRACE"].required_value
     if settings.refresh_token_migration_grace:
         raise RuntimeError(
-            "FATAL: REFRESH_TOKEN_MIGRATION_GRACE must be "
-            f"{refresh_grace_required_value} when DEBUG=false."
+            "FATAL: REFRESH_TOKEN_MIGRATION_GRACE must be " f"{refresh_grace_required_value} when DEBUG=false."
         )
     ordinary_access_minutes = invariant_map["ACCESS_TOKEN_EXPIRE_MINUTES"].required_value
     if str(settings.access_token_expire_minutes) != ordinary_access_minutes:
-        raise RuntimeError(
-            "FATAL: ACCESS_TOKEN_EXPIRE_MINUTES must be "
-            f"{ordinary_access_minutes} when DEBUG=false."
-        )
+        raise RuntimeError("FATAL: ACCESS_TOKEN_EXPIRE_MINUTES must be " f"{ordinary_access_minutes} when DEBUG=false.")
     admin_access_minutes = invariant_map["PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES"].required_value
     if str(settings.platform_admin_access_token_expire_minutes) != admin_access_minutes:
         raise RuntimeError(
-            "FATAL: PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES must be "
-            f"{admin_access_minutes} when DEBUG=false."
+            "FATAL: PLATFORM_ADMIN_ACCESS_TOKEN_EXPIRE_MINUTES must be " f"{admin_access_minutes} when DEBUG=false."
         )
+
+    try:
+        enforce_identity_release_admission(resolve_identity_profile(settings))
+    except ValueError as exc:
+        raise RuntimeError(f"FATAL: {exc}") from exc
 
     broad_proxy_entries = find_broad_trusted_proxy_entries(settings.trusted_proxies)
     if broad_proxy_entries:
@@ -373,6 +374,10 @@ async def lifespan(app: FastAPI):
         raise RuntimeError("Database sessionmaker not initialized; call init_app_db() during app creation.")
     await enforce_schema_head(engine=db_engine, database_url=settings.database_url)
     async with db_sessionmaker() as db:
+        if not settings.debug:
+            from app.services.identity_installation import validate_installation_binding
+
+            await validate_installation_binding(db, settings=settings)
         await apply_persisted_log_rotation_config(db)
 
     await bootstrap_runtime_services(app)

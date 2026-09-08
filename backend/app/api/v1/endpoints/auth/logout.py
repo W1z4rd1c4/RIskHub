@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.requests import Request
@@ -12,9 +12,9 @@ from app.db.session import get_db
 from app.models import RefreshToken, User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.services._auth_session_workflow import commit_logout, commit_logout_all
+from app.services._auth_session_workflow.authority import invalidate_user_sessions, lock_session_user
 
 from ._request_protection import validate_csrf, validate_request_origin
-from ._shared import _invalidate_user_sessions
 
 router = APIRouter()
 
@@ -33,7 +33,7 @@ async def _resolve_refresh_cookie_user(
     user_id = payload.get("user_id")
     jti = payload.get("jti")
     token_version = payload.get("token_version")
-    if not isinstance(user_id, int) or not isinstance(jti, str) or not isinstance(token_version, int):
+    if type(user_id) is not int or not isinstance(jti, str) or type(token_version) is not int:
         return None
 
     refresh_row = (
@@ -82,7 +82,12 @@ async def logout(
         if require_csrf and (forbidden_response := validate_csrf(request)):
             return forbidden_response
 
-        revoked = await _invalidate_user_sessions(db=db, user=resolved_user, reason="logout")
+        expected_version = resolved_user.token_version
+        resolved_user = await lock_session_user(db, user_id=resolved_user.id)
+        if resolved_user is None or resolved_user.token_version != expected_version:
+            clear_refresh_cookie(response, settings)
+            return {"message": "Logged out successfully"}
+        revoked = await invalidate_user_sessions(db=db, user=resolved_user, reason="logout")
         await log_activity(
             db=db,
             actor=resolved_user,
@@ -113,7 +118,11 @@ async def logout_all_devices(
     db: AsyncSession = Depends(get_db),
     settings: Settings = Depends(get_settings),
 ):
-    revoked = await _invalidate_user_sessions(db=db, user=current_user, reason="logout_all")
+    expected_version = current_user.token_version
+    locked_user = await lock_session_user(db, user_id=current_user.id)
+    if locked_user is None or locked_user.token_version != expected_version:
+        raise HTTPException(status_code=401, detail="Session revoked")
+    revoked = await invalidate_user_sessions(db=db, user=locked_user, reason="logout_all")
     await log_activity(
         db=db,
         actor=current_user,

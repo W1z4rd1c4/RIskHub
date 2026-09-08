@@ -2,7 +2,7 @@ name: Maintenance Governance
 
 on:
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "feat/identity-group-*"]
     paths:
       - 'AGENTS.md'
       - '.planning/**'

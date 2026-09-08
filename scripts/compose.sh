@@ -179,23 +179,39 @@ wait_for_redis_or_die() {
   done
 }
 
+wait_for_http() {
+  local url="$1"
+  local attempt
+  # Container started is not HTTP ready. Retry only these side-effect-free GETs.
+  # Each attempt and the total attempt count are bounded, including connection resets.
+  for ((attempt = 1; attempt <= 12; attempt++)); do
+    if curl --connect-timeout 2 --max-time 5 -fsS "$url" >/dev/null; then
+      return 0
+    fi
+    if ((attempt < 12)); then
+      sleep 2
+    fi
+  done
+  return 1
+}
+
 smoke_check_or_die() {
   command -v curl >/dev/null 2>&1 || die "curl is required for smoke checks"
 
   log "Smoke check: backend readiness"
-  if ! curl -fsS "http://localhost:8000/api/v1/readyz" >/dev/null; then
+  if ! wait_for_http "http://localhost:8000/api/v1/readyz"; then
     docker logs riskhub-backend --tail 200 || true
     die "Backend readiness endpoint not reachable."
   fi
 
   log "Smoke check: auth config"
-  if ! curl -fsS "http://localhost:8000/api/v1/auth/config" >/dev/null; then
+  if ! wait_for_http "http://localhost:8000/api/v1/auth/config"; then
     docker logs riskhub-backend --tail 200 || true
     die "Auth config endpoint not reachable."
   fi
 
   log "Smoke check: login page"
-  if ! curl -fsS "http://localhost:80/login" >/dev/null; then
+  if ! wait_for_http "http://localhost:80/login"; then
     docker logs riskhub-frontend --tail 200 || true
     die "Login page not reachable."
   fi

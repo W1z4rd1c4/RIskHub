@@ -7,7 +7,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "feat/identity-group-*"]
   schedule:
     # Run nightly at 02:00 UTC for resilience smoke checks
     - cron: '0 2 * * *'

@@ -7,7 +7,7 @@ import argparse
 import asyncio
 import sys
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, text
 
 from app.core.config import get_settings
 from app.core.email import email_equals, normalize_email
@@ -20,6 +20,8 @@ from app.services._directory_identity import (
     has_auto_deprovision_reason,
 )
 from app.services.directory_provider_service import DirectoryProviderService, DirectoryProviderUnavailableError
+from app.services.identity_installation import validate_installation_binding
+from app.services.transaction_boundary import commit_service_boundary
 
 
 def _parse_args(argv: list[str]) -> argparse.Namespace:
@@ -92,6 +94,12 @@ async def _run(args: argparse.Namespace) -> int:
     if not email or "@" not in email:
         raise SystemExit("Invalid --email (must be a valid email address)")
 
+    if not settings.debug:
+        if settings.auth_mode != "microsoft_sso":
+            raise SystemExit("SSO bootstrap requires the Entra identity profile")
+        async with session_context(settings) as db:
+            await validate_installation_binding(db, settings=settings)
+
     directory_user = None
     external_id = args.external_id.strip() if args.external_id else None
     if external_id == "":
@@ -105,6 +113,11 @@ async def _run(args: argparse.Namespace) -> int:
     department_id = await _resolve_department_id(args.department)
 
     async with session_context(settings) as db:
+        if not settings.debug:
+            await validate_installation_binding(db, settings=settings)
+            # Prevent competing bootstraps and lifecycle changes before creation.
+            if db.get_bind().dialect.name == "postgresql":
+                await db.execute(text("SELECT pg_advisory_xact_lock(hashtext('riskhub.identity.administration'))"))
         role_result = await db.execute(select(Role).where(Role.name == args.role))
         role = role_result.scalar_one_or_none()
         if role is None:
@@ -122,6 +135,24 @@ async def _run(args: argparse.Namespace) -> int:
         user = user_by_external_id or user_by_email
 
         access_scope = AccessScope(args.access_scope)
+
+        created = user is None
+        if not created and not settings.debug:
+            # Bootstrap is not a privilege restoration or recovery interface.
+            if (
+                not user.is_active
+                or user.local_suspended
+                or user.role_id != role.id
+                or user.access_scope != access_scope
+                or user.department_id != department_id
+                or user.external_id != external_id
+            ):
+                raise SystemExit(
+                    "Existing account differs from bootstrap intent or is suspended; "
+                    "use the authenticated identity lifecycle or governed recovery"
+                )
+            print("BOOTSTRAP_OK no-op existing enrolled identity preserved")
+            return 0
 
         if user is None:
             user = User(
@@ -141,7 +172,7 @@ async def _run(args: argparse.Namespace) -> int:
                 f"Bootstrap conflict: existing user {user.email!r} is already linked to a different external_id"
             )
 
-        changed = False
+        changed = created
 
         if user.role_id != role.id:
             user.role_id = role.id
@@ -177,7 +208,7 @@ async def _run(args: argparse.Namespace) -> int:
         if changed:
             db.add(user)
             await db.flush()
-            await db.commit()
+            await commit_service_boundary(db, boundary="identity_access.bootstrap_sso_user")
             print(
                 "BOOTSTRAP_OK updated "
                 f"email={email} role={role.name} scope={access_scope.value} external_id_set={bool(user.external_id)}"

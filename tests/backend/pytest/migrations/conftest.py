@@ -11,8 +11,10 @@ from typing import AsyncGenerator
 
 import pytest
 import pytest_asyncio
+from alembic.config import Config
 from alembic.migration import MigrationContext
 from alembic.operations import Operations
+from alembic.script import ScriptDirectory
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
@@ -27,6 +29,18 @@ MIGRATION_PATH = (
     / "versions"
     / "k6l7m8n9o0p1_vendor_link_cascade_and_status_drop.py"
 )
+
+
+def rehearsal_head_after(required_revision: str) -> str:
+    """Resolve this checkout's single head without accepting a missing contract revision."""
+    backend = Path(__file__).resolve().parents[4] / "backend"
+    script = ScriptDirectory.from_config(Config(str(backend / "alembic.ini")))
+    heads = script.get_heads()
+    assert len(heads) == 1, f"Migration rehearsal requires one head, found {heads}"
+    head = heads[0]
+    ancestors = {revision.revision for revision in script.walk_revisions(head=head)}
+    assert required_revision in ancestors, f"Required revision {required_revision} is not an ancestor of {head}"
+    return head
 
 
 def load_vendor_migration() -> ModuleType:

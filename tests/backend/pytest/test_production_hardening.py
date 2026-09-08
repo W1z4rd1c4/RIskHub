@@ -114,7 +114,7 @@ def test_allowed_hosts_reject_wildcards_in_production_mode(allowed_hosts: list[s
 
 
 def test_auth_mode_guard_requires_microsoft_sso_in_production():
-    with pytest.raises(RuntimeError, match="AUTH_MODE must be 'microsoft_sso'"):
+    with pytest.raises(RuntimeError, match="AUTH_MODE=password requires DIRECTORY_PROVIDER=none"):
         create_app(_production_settings(auth_mode="password"))
 
 

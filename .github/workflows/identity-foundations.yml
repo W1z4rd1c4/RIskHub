@@ -1,0 +1,89 @@
+name: Identity Foundation Verification
+
+on:
+  pull_request:
+    branches: [main, "feat/identity-group-*"]
+    paths:
+      - 'backend/**'
+      - 'tests/backend/**'
+      - 'docs/adr/**'
+      - 'docs/security/identity-*.md'
+      - '.github/workflows/identity-foundations.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: identity-foundations-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  source-evidence:
+    name: Identity source provenance
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Capture tracked source and immutable identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/identity-evidence"
+          git rev-parse HEAD > "$RUNNER_TEMP/identity-evidence/commit.txt"
+          git rev-parse HEAD^{tree} > "$RUNNER_TEMP/identity-evidence/tree.txt"
+          git archive --format=tar.gz --output="$RUNNER_TEMP/identity-evidence/source.tar.gz" HEAD
+          sha256sum "$RUNNER_TEMP/identity-evidence/source.tar.gz" > "$RUNNER_TEMP/identity-evidence/source.sha256"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: identity-source-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/identity-evidence/
+          retention-days: 7
+          if-no-files-found: error
+
+  foundation-regression:
+    name: Identity foundation PostgreSQL regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:15@sha256:c635fa3e3b7421a659d34abdfd6d492f679cbe8149e261a501237b55c5a94212
+        env:
+          POSTGRES_USER: riskhub
+          POSTGRES_PASSWORD: riskhub_test
+          POSTGRES_DB: riskhub_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
+        with:
+          python-version: '3.13'
+      - name: Install repository test dependencies
+        working-directory: backend
+        run: |
+          python -m pip install -r requirements.txt
+          python -m pip install -r requirements-dev.txt
+      - name: Run identity and session regressions
+        working-directory: backend
+        env:
+          TEST_DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
+        run: |
+          pytest ../tests/backend/pytest/test_identity_authority_loading.py ../tests/backend/pytest/test_users.py ../tests/backend/pytest/test_identity_foundations.py ../tests/backend/pytest/test_identity_foundations_postgres.py ../tests/backend/pytest/test_sso_exchange.py ../tests/backend/pytest/test_auth_refresh.py ../tests/backend/pytest/test_auth_session_lifecycle.py ../tests/backend/pytest/test_admin_sessions.py ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_directory_import.py ../tests/backend/pytest/test_ad_deprovision_service.py ../tests/backend/pytest/test_admin_directory_sync.py -q --no-cov
+      - name: Validate production and authorization documentation
+        run: |
+          python3 scripts/security/validate_production_contract_docs.py
+          python3 scripts/security/validate_authz_capability_contract.py
+      - name: Check reserved API and frontend type parity
+        working-directory: backend
+        run: python -m scripts.export_local_auth_contract --check

@@ -139,7 +139,7 @@ def test_ci_contract_records_exact_branch_path_tag_and_schedule_filters():
     events = _ci_contract()["workflow_contracts"]
 
     assert events[".github/workflows/startup-smoke-pr.yml"]["events"] == {
-        "pull_request": {"branches": ["main", "develop"]},
+        "pull_request": {"branches": ["main", "develop", "feat/identity-group-*"]},
     }
     assert events[".github/workflows/startup-smoke.yml"]["events"] == {
         "push": {"branches": ["main", "develop"]},
@@ -150,7 +150,7 @@ def test_ci_contract_records_exact_branch_path_tag_and_schedule_filters():
     maintenance_pr = events[
         ".github/workflows/maintenance-governance.yml"
     ]["events"]["pull_request"]
-    assert maintenance_pr["branches"] == ["main", "develop"]
+    assert maintenance_pr["branches"] == ["main", "develop", "feat/identity-group-*"]
     assert maintenance_pr["paths"] == [
         "AGENTS.md",
         ".planning/**",
@@ -212,7 +212,7 @@ def test_ci_contract_governs_frontend_container_gate_contract_workflow():
     assert workflow_name in module.GOVERNED_WORKFLOWS
     assert payload["workflow_contracts"][workflow_name]["events"] == {
         "pull_request": {
-            "branches": ["main", "develop"],
+            "branches": ["main", "develop", "feat/identity-group-*"],
             "paths": relevant_paths,
         },
         "push": {
@@ -259,3 +259,20 @@ def test_contributor_command_rejects_unknown_command():
 
     assert result.returncode == 2
     assert "Unknown RiskHub command" in result.stderr
+
+
+def test_identity_stack_gates_preserve_push_and_blocking_semantics():
+    payload = _ci_contract()
+    for basename in ("lint.yml", "backend-postgres.yml", "e2e.yml", "security.yml"):
+        events = payload["workflow_contracts"][f".github/workflows/{basename}"]["events"]
+        assert events["pull_request"]["branches"] == ["main", "develop", "feat/identity-group-*"]
+        assert events["push"]["branches"] == ["main", "develop"]
+    identity_checks = [
+        check for check in payload["checks"]
+        if Path(check["workflow"]).name.startswith("identity-")
+    ]
+    assert len(identity_checks) == 2
+    for check in identity_checks:
+        assert check["continue_on_error"] is False
+        assert check["required_on_protected_main"] is False
+        assert check["timeout_minutes"] > 0

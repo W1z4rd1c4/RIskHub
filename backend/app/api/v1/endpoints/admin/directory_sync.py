@@ -1,16 +1,18 @@
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.activity_logger import log_activity
 from app.core.config import Settings, get_settings
 from app.core.datetime_utils import utc_now
+from app.core.identity_policy import projected_account_active
 from app.db.session import get_db
 from app.models import User
 from app.models.activity_log import ActivityAction, ActivityEntityType
 from app.schemas.directory import DirectoryBreakGlassEnableRequest
+from app.services._auth_session_workflow.authority import invalidate_user_sessions
+from app.services._identity_authority_lock import lock_identity_transition
 from app.services.ad_deprovision_service import ADDeprovisionService
 from app.services.directory_provider_service import DirectoryProviderUnavailableError
 from app.services.transaction_boundary import commit_service_transaction
@@ -65,9 +67,11 @@ async def break_glass_enable_directory_user(
     db: AsyncSession = Depends(get_db),
     admin_user: User = Depends(require_platform_admin),
 ) -> dict:
-    user = (await db.execute(select(User).where(User.id == user_id))).scalar_one_or_none()
-    if user is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+    user = await lock_identity_transition(db, user_id=user_id, actor=admin_user)
+    if user.local_suspended:
+        raise HTTPException(
+            status_code=409, detail="Local suspension must be resolved separately from directory break-glass"
+        )
     if not user.external_id:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="User is not directory-linked")
     if user.deprovision_reason not in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
@@ -77,10 +81,11 @@ async def break_glass_enable_directory_user(
         )
 
     now = utc_now()
-    user.is_active = True
     user.break_glass_reason = payload.reason.strip()
     user.break_glass_expires_at = now + payload.expires_delta
     user.break_glass_granted_by_user_id = admin_user.id
+    user.is_active = projected_account_active(user)
+    await invalidate_user_sessions(db=db, user=user, reason="directory_break_glass_granted")
     db.add(user)
 
     await log_activity(

@@ -7,7 +7,6 @@ from app.core.activity_logger import build_change_set
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.exceptions import NotFoundError, ValidationError
-from app.core.user_query_options import user_selectinload_options
 from app.models import User
 from app.models.user import AccessScope
 from app.schemas.access import AccessUserUpdate
@@ -16,16 +15,13 @@ from app.services._access_workflow import (
     authorize_access_update_fields,
     is_platform_admin,
 )
-from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
+from app.services._identity_authority_lock import lock_identity_transition
 from app.services._org_chart import (
     acquire_org_chart_lock,
     clear_manager_references_for_inactive_user,
     validate_dept_manager_dept_change,
     validate_no_manager_cycle,
 )
-from app.services._process_owner_lock import acquire_process_owner_identity_lock
-from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
-from app.services._vendor_owner_lock import acquire_vendor_owner_identity_lock
 
 from .ciso_stewardship import (
     flag_orphaned_items_for_deactivation,
@@ -35,10 +31,12 @@ from .ciso_stewardship import (
 from .execution import log_user_update_and_commit
 from .policy import (
     ensure_directory_reenable_allowed,
+    ensure_platform_admin_survives,
     ensure_remaining_global_privileged_user,
     ensure_role_change_keeps_privileged_access,
     ensure_sso_local_field_update_allowed,
     is_global_privileged_user,
+    prepare_manual_activity_update,
 )
 
 
@@ -56,12 +54,8 @@ async def update_access_profile(
     user_data: AccessUserUpdate | dict,
 ) -> User:
     update_data = user_data if isinstance(user_data, dict) else user_data.model_dump(exclude_unset=True)
-    result = await db.execute(
-        select(User).options(*user_selectinload_options(include_permissions=True)).where(User.id == user_id)
-    )
-    user = result.scalar_one_or_none()
-    if not user:
-        raise NotFoundError("User not found")
+    update_data = dict(update_data)
+    user = await lock_identity_transition(db, user_id=user_id, actor=current_user)
     if is_platform_admin(user) and not is_platform_admin(current_user):
         raise NotFoundError("User not found")
 
@@ -73,24 +67,8 @@ async def update_access_profile(
         update_data=update_data,
     )
 
-    changes_steward_identity = (
-        update_data.get("is_active") is False
-        or (new_role is not None and new_role.id != user.role_id)
-    )
-    if changes_steward_identity:
-        await acquire_threat_steward_identity_lock(db, user_id=user.id)
-        if update_data.get("is_active") is False:
-            await acquire_process_owner_identity_lock(db, user_id=user.id)
-            await acquire_asset_owner_identity_lock(db, user_id=user.id)
-            await acquire_vendor_owner_identity_lock(db, user_id=user.id)
-        user = (
-            await db.execute(
-                select(User)
-                .options(*user_selectinload_options(include_permissions=True))
-                .where(User.id == user.id)
-                .execution_options(populate_existing=True)
-            )
-        ).scalar_one()
+    prepare_manual_activity_update(user=user, update_data=update_data, settings=settings)
+    await ensure_platform_admin_survives(db, user=user, update_data=update_data, settings=settings)
 
     is_deactivating = user.is_active is True and update_data.get("is_active") is False
     if is_deactivating and current_user.id == user.id and is_global_privileged_user(user):

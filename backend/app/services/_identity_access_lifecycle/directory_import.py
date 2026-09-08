@@ -5,14 +5,14 @@ from typing import Literal
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import selectinload
 
 from app.core.config import Settings
 from app.core.email import email_equals
 from app.core.exceptions import ConflictError, ServiceFailure, ValidationError
+from app.core.identity_policy import projected_account_active
 from app.models import Role, User
 from app.schemas.directory import DirectoryImportRequest, DirectoryUserRead
-from app.services._asset_owner_lock import acquire_asset_owner_identity_lock
+from app.services._auth_session_workflow.authority import invalidate_user_sessions
 from app.services._directory_identity import (
     DirectoryIdentityConflictError,
     apply_directory_profile,
@@ -21,8 +21,7 @@ from app.services._directory_identity import (
 from app.services._directory_identity import (
     resolve_safe_default_role as resolve_directory_safe_default_role,
 )
-from app.services._process_owner_lock import acquire_process_owner_identity_lock
-from app.services._threat_stewardship_lock import acquire_threat_steward_identity_lock
+from app.services._identity_authority_lock import lock_identity_transition
 from app.services.ad_deprovision_service import ADDeprovisionService
 
 from .ciso_stewardship import (
@@ -31,6 +30,7 @@ from .ciso_stewardship import (
 )
 from .contracts import IdentityImportOutcome
 from .execution import commit_directory_import, load_directory_import_user
+from .policy import ensure_platform_admin_survives, ensure_role_change_keeps_privileged_access
 from .projection import build_directory_import_response
 
 
@@ -98,25 +98,17 @@ async def import_directory_identity(
             import_status = "created"
             seed_directory_department = True
 
-    changes_existing_steward_identity = import_status == "updated" and (
-        payload.role_id is not None or not directory_user.account_enabled
-    )
-    if changes_existing_steward_identity:
-        await acquire_threat_steward_identity_lock(db, user_id=user.id)
-        if not directory_user.account_enabled:
-            await acquire_process_owner_identity_lock(db, user_id=user.id)
-            await acquire_asset_owner_identity_lock(db, user_id=user.id)
-        user = (
-            await db.execute(
-                select(User)
-                .options(selectinload(User.role), selectinload(User.department))
-                .where(User.id == user.id)
-                .execution_options(populate_existing=True)
-            )
-        ).scalar_one()
+    if import_status == "updated":
+        user = await lock_identity_transition(db, user_id=user.id, actor=current_user)
+        if user.external_id not in (None, directory_user.external_id):
+            raise ConflictError("Directory identity binding changed; retry the import")
+    previous_version = user.token_version or 0
+    previous_authority = (user.role_id, user.is_active, user.external_id)
 
     if payload.role_id is not None and import_status == "updated":
         role = await resolve_role_for_directory_import(db, override_role_id=payload.role_id)
+        await ensure_platform_admin_survives(db, user=user, update_data={"role_id": role.id}, settings=settings)
+        await ensure_role_change_keeps_privileged_access(db, current_user=current_user, user=user, new_role=role)
         if directory_user.account_enabled and await role_change_removes_ciso_stewardship(
             db,
             user=user,
@@ -138,9 +130,9 @@ async def import_directory_identity(
             raise ConflictError(str(exc)) from exc
 
         if directory_user.account_enabled and user.deprovision_reason in ADDeprovisionService.AUTO_DEPROVISION_REASONS:
-            user.is_active = True
             user.deprovisioned_at = None
             user.deprovision_reason = None
+            user.is_active = projected_account_active(user, settings=settings)
             user.break_glass_expires_at = None
             user.break_glass_reason = None
             user.break_glass_granted_by_user_id = None
@@ -155,6 +147,12 @@ async def import_directory_identity(
                 deprovision_reason=ADDeprovisionService.DEPROVISION_REASON_DIRECTORY_DISABLED,
             )
 
+        if (
+            import_status == "updated"
+            and user.token_version == previous_version
+            and previous_authority != (user.role_id, user.is_active, user.external_id)
+        ):
+            await invalidate_user_sessions(db=db, user=user, reason="directory_import_identity_changed")
         db.add(user)
         await db.flush()
         await commit_directory_import(

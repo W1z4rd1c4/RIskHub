@@ -152,7 +152,9 @@ async def test_access_users_include_break_glass_capability_for_directory_deprovi
 
     assert response.status_code == 200
     target = next(item for item in response.json() if item["id"] == test_user_employee.id)
-    assert target["capabilities"]["can_change_active_status"] is True
+    # Ordinary resumption remains denied; the separately bounded override is available.
+    assert target["capabilities"]["can_change_active_status"] is False
+    assert target["capabilities"]["can_resume"] is False
     assert target["capabilities"]["can_break_glass_enable"] is True
 
 

@@ -30,3 +30,5 @@ Execution request/response schema ownership for the execution domain lives in
 paginated `/executions` response shapes.
 
 Keep this README updated when responsibilities or structure in this folder change.
+
+- `local_auth.py`: reserved native request/response contract; no live route registration.
