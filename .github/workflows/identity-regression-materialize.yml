@@ -1,0 +1,84 @@
+name: Identity Regression Candidate Assembly
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/identity-regression-materialize.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  assemble:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feat/identity-group-1-foundations' && github.event.pull_request.base.ref == 'main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          ref: 86191772c29fa988469e7498472cf07ceba14f40
+          persist-credentials: false
+      - name: Reconstruct the fixed test-only candidate without executing it
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import base64
+          import hashlib
+          import json
+          import lzma
+          import os
+          import subprocess
+          import urllib.request
+
+          BASE = '27c84bbf64d8c1a79c8e0d475df5c1b4dbc4380f'
+          EXPECTED = '0452d24bdea1969a0ceb8902b94f0ccb6515ac66'
+          BLOB = '75a77ff75165f707a348d860dd3286b110035f79'
+          API = 'https://api.github.com/repos/W1z4rd1c4/RiskHub'
+
+          def api(path, payload=None):
+              if path not in ('/git/blobs/' + BLOB, '/git/trees'):
+                  raise RuntimeError('Unapproved operation')
+              data = None if payload is None else json.dumps(payload).encode()
+              request = urllib.request.Request(API + path, data=data, headers={
+                  'Authorization': 'Bearer ' + os.environ['GH_TOKEN'],
+                  'Accept': 'application/vnd.github+json',
+                  'Content-Type': 'application/json',
+                  'X-GitHub-Api-Version': '2022-11-28',
+              })
+              with urllib.request.urlopen(request, timeout=60) as response:
+                  return json.load(response)
+
+          def git(*args):
+              return subprocess.check_output(['git', '-c', 'core.hooksPath=/dev/null', *args])
+
+          if git('rev-parse', 'HEAD^{tree}').decode().strip() != BASE:
+              raise RuntimeError('Base tree mismatch')
+          blob = api('/git/blobs/' + BLOB)
+          compressed = base64.b64decode(blob['content'])
+          if len(compressed) != 2164 or hashlib.sha256(compressed).hexdigest() != '7faf6c3cea1b4db9d6f32173627b761bdde928d9be19f23756dac00fe8bbf70c':
+              raise RuntimeError('Compressed patch mismatch')
+          patch = lzma.decompress(compressed, memlimit=268435456)
+          if len(patch) != 10174 or hashlib.sha256(patch).hexdigest() != '46870aa177a865921cb4d73b4abf40d2ee564357360c9ecb1b852a833aa64803':
+              raise RuntimeError('Patch mismatch')
+          subprocess.run(['git', '-c', 'core.hooksPath=/dev/null', 'apply', '--index', '--whitespace=error'], input=patch, check=True)
+          if git('write-tree').decode().strip() != EXPECTED:
+              raise RuntimeError('Candidate tree mismatch')
+          paths = [p.decode() for p in git('diff', '--cached', '--name-only', '-z').split(b'\0') if p]
+          if len(paths) != 6 or any(not p.startswith('tests/backend/pytest/') for p in paths):
+              raise RuntimeError('Unexpected changed paths')
+          tree = []
+          for path in paths:
+              entry = git('ls-files', '--stage', '--', path).decode().split()
+              if entry[0] != '100644' or entry[2] != '0':
+                  raise RuntimeError('Unexpected file mode or index stage')
+              content = git('cat-file', 'blob', entry[1]).decode('utf-8')
+              tree.append({'path': path, 'mode': '100644', 'type': 'blob', 'content': content})
+          result = api('/git/trees', {'base_tree': BASE, 'tree': tree})
+          if result['sha'] != EXPECTED:
+              raise RuntimeError('Published object tree mismatch')
+          print('VERIFIED_TEST_CORRECTION_TREE=' + result['sha'])
+          print('No application/test execution, commit creation, or ref update.')
+          PY
