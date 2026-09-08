@@ -1,13 +1,13 @@
 # Repository Structure
 
-**Analysis Date:** 2026-09-07
+**Analysis Date:** 2026-09-08
 
 This file is a versioned repository-structure snapshot for the commit that
 contains it. It does not assign live work or determine whether an issue, pull
 request, or project item is open. See
 [`docs/DOCUMENTATION_OWNERSHIP.md`](../../docs/DOCUMENTATION_OWNERSHIP.md).
 
-Tracked file counts refreshed from `git ls-files` on 2026-09-07.
+Tracked file counts refreshed from `git ls-files` on 2026-09-08.
 
 ## Top-Level Layout
 
@@ -36,7 +36,7 @@ Tracked file counts refreshed from `git ls-files` on 2026-09-07.
 - `backend/alembic/` - migration environment and versioned migrations
 - `backend/scripts/runtime/` - component-scoped backend runtime entrypoints (`dev`, `test`, `prod`)
 - `backend/scripts/runtime/db/` - backend-owned DB runtime entrypoints (`dev`, `test`, `prod`)
-- `tests/backend/pytest/` - 510 tracked test files (472 Python) in the measured repository snapshot
+- `tests/backend/pytest/` - 511 tracked test files (473 Python) in the measured repository snapshot
 
 ## Frontend Tree (`frontend/`)
 
@@ -92,4 +92,4 @@ in the applicable GitHub Issue, pull request, or Project item.
 
 ---
 
-*Structure audit refreshed on 2026-09-07*
+*Structure audit refreshed on 2026-09-08*
