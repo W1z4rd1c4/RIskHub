@@ -49,6 +49,11 @@ and security checks, use [docs/security/SECURITY.md](./docs/security/SECURITY.md
 4. Run the smallest relevant verification for the surface you changed.
 5. Open a pull request against `main`.
 
+For the explicitly planned identity stack, follow-up PRs may target
+`feat/identity-group-*`. The same standard CI gates run on those base branches.
+Retarget and rerun checks after the parent is accepted; a green child does not
+authorize merging an unaccepted parent. See the canonical CI ownership map above.
+
 ## Verification Expectations
 
 Run the smallest relevant checks before opening a PR:

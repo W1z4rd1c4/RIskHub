@@ -77,6 +77,9 @@ cd backend
 - Production deployment remains separate and is guided through `./scripts/install.sh production` or the lower-level `./scripts/deploy.sh`.
 - Day-2 production lifecycle is wrapper-first through `./scripts/install.sh status`, `logs`, `doctor`, and `upgrade`.
 
+Identity stack PRs also run the standard CI gates; the authoritative trigger,
+owner and triage inventory is `docs/development/ci-gate-contract.json`.
+
 ## Common verification commands
 
 ```bash

@@ -664,3 +664,13 @@ async def test_last_platform_admin_demotion_uses_conflict_even_without_cro(
     assert response.status_code == 409, response.text
     await db_session.refresh(test_user)
     assert test_user.role_id == original_role
+
+
+def test_empty_object_wire_types_do_not_accept_primitives():
+    from scripts.export_local_auth_contract import typescript_type
+
+    closed_object = {"type": "object", "properties": {}, "additionalProperties": False}
+    assert typescript_type(closed_object) == "Record<string, never>"
+    assert typescript_type({"type": "object", "additionalProperties": False}) == "Record<string, never>"
+    assert typescript_type({"type": "object", "properties": {}}) == "Record<string, unknown>"
+    assert typescript_type({"type": "object", "additionalProperties": {"type": "string"}}) == "Record<string, string>"

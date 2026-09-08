@@ -60,6 +60,7 @@ GOVERNED_WORKFLOWS = {
     ".github/workflows/backend-postgres.yml",
     ".github/workflows/e2e.yml",
     ".github/workflows/frontend-container-gate-contract.yml",
+    ".github/workflows/identity-foundations.yml",
     ".github/workflows/lint.yml",
     ".github/workflows/maintenance-governance.yml",
     ".github/workflows/python-dev-lock-refresh.yml",

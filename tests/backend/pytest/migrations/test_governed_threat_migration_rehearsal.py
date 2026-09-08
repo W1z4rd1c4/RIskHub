@@ -13,6 +13,8 @@ from uuid import uuid4
 import pytest
 from sqlalchemy.engine import make_url
 
+from tests.backend.pytest.migrations.conftest import rehearsal_head_after
+
 ROOT = Path(__file__).resolve().parents[4]
 BACKEND = ROOT / "backend"
 TARGET_REVISION = "s8t9u0v1w2x3"
@@ -189,6 +191,7 @@ def test_governed_threat_migrations_rehearse_zero_and_previous_head_to_head(
     source_url = os.environ.get("TEST_DATABASE_URL", "")
     if not source_url.startswith("postgresql"):
         pytest.skip("ADR-010 migration rehearsal requires PostgreSQL")
+    target_revision = rehearsal_head_after(TARGET_REVISION)
     database_name = f"riskhub_t88_rehearsal_{uuid4().hex[:12]}"
     quoted_name = '"' + database_name.replace('"', '""') + '"'
     target_url = (
@@ -218,7 +221,7 @@ def test_governed_threat_migrations_rehearse_zero_and_previous_head_to_head(
                 )
             )
             _alembic(target_url, "upgrade", "head")
-        assert f"{TARGET_REVISION} (head)" in _alembic(
+        assert f"{target_revision} (head)" in _alembic(
             target_url, "current"
         ).stdout
         heads = [
@@ -226,7 +229,7 @@ def test_governed_threat_migrations_rehearse_zero_and_previous_head_to_head(
             for line in _alembic(target_url, "heads").stdout.splitlines()
             if line.strip()
         ]
-        assert heads == [f"{TARGET_REVISION} (head)"]
+        assert heads == [f"{target_revision} (head)"]
         asyncio.run(
             _assert_head(
                 target_url,
