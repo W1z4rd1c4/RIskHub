@@ -495,17 +495,17 @@ async def test_access_management_role_loss_flags_stewarded_threats(
     ciso_user: User,
     monkeypatch,
 ) -> None:
-    import app.services._identity_access_lifecycle.access_scope as access_scope
+    import app.services._identity_authority_lock as identity_lock
 
     lock_calls: list[int] = []
-    original_lock = access_scope.acquire_threat_steward_identity_lock
+    original_lock = identity_lock.acquire_threat_steward_identity_lock
 
     async def capture_lock(db: AsyncSession, *, user_id: int) -> None:
         lock_calls.append(user_id)
         await original_lock(db, user_id=user_id)
 
     monkeypatch.setattr(
-        access_scope,
+        identity_lock,
         "acquire_threat_steward_identity_lock",
         capture_lock,
     )
@@ -571,17 +571,17 @@ async def test_access_management_deactivation_flags_all_owned_items_under_shared
     ciso_user: User,
     monkeypatch,
 ) -> None:
-    import app.services._identity_access_lifecycle.access_scope as access_scope
+    import app.services._identity_authority_lock as identity_lock
 
     lock_calls: list[int] = []
-    original_lock = access_scope.acquire_threat_steward_identity_lock
+    original_lock = identity_lock.acquire_threat_steward_identity_lock
 
     async def capture_lock(db: AsyncSession, *, user_id: int) -> None:
         lock_calls.append(user_id)
         await original_lock(db, user_id=user_id)
 
     monkeypatch.setattr(
-        access_scope,
+        identity_lock,
         "acquire_threat_steward_identity_lock",
         capture_lock,
     )

@@ -699,7 +699,7 @@ def test_startup_smoke_workflow_asserts_health_schema_headers_and_docs_exposure(
     assert "name: Docker Onboarding Smoke (Scheduled)" in scheduled_text
 
     assert "pull_request:" in pr_text
-    assert "branches: [main, develop]" in pr_text
+    assert 'branches: [main, develop, "feat/identity-group-*"]' in pr_text
     assert "ref: ${{ github.event.pull_request.head.sha }}" in pr_text
     assert "name: Docker Onboarding Smoke\n" in pr_text
 

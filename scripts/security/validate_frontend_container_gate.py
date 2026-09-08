@@ -23,7 +23,7 @@ SARIF_SCHEMA_URI = (
 DEFAULT_TRIVY_PATHS = (".trivyignore", "trivy.yaml")
 APPROVED_PRODUCTION_TRIGGERS = {
     "push": {"branches": ["main", "develop"]},
-    "pull_request": {"branches": ["main", "develop"]},
+    "pull_request": {"branches": ["main", "develop", "feat/identity-group-*"]},
     "schedule": [
         {"cron": "0 2 * * *"},
         {"cron": "0 0 * * 0"},
@@ -38,7 +38,7 @@ INJECTED_TRIGGER_PATHS = [
 ]
 APPROVED_INJECTED_TRIGGERS = {
     "pull_request": {
-        "branches": ["main", "develop"],
+        "branches": ["main", "develop", "feat/identity-group-*"],
         "paths": INJECTED_TRIGGER_PATHS,
     },
     "push": {

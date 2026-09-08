@@ -441,7 +441,7 @@ def test_contract_validator_rejects_trivy_environment_overrides(
 
 def test_contract_validator_requires_pull_request_trigger(tmp_path: Path) -> None:
     workflow = SECURITY_WORKFLOW.read_text(encoding="utf-8").replace(
-        "  pull_request:\n    branches: [main, develop]\n",
+        "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n",
         "",
         1,
     )
@@ -538,27 +538,27 @@ def test_contract_validator_rejects_noop_status_recorder(tmp_path: Path) -> None
     ("anchor", "injected"),
     [
         (
-            "  pull_request:\n    branches: [main, develop]\n",
-            "  pull_request:\n    branches: [main, develop]\n"
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n",
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n"
             "    paths: ['frontend/**']\n",
         ),
         (
-            "  pull_request:\n    branches: [main, develop]\n",
-            "  pull_request:\n    branches: [main, develop]\n"
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n",
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n"
             "    paths-ignore: ['docs/**']\n",
         ),
         (
-            "  pull_request:\n    branches: [main, develop]\n",
-            "  pull_request:\n    branches: [main, develop]\n"
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n",
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n"
             "    types: [opened]\n",
         ),
         (
-            "  pull_request:\n    branches: [main, develop]\n",
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n",
             "  pull_request:\n    branches: [main, develop, '!main']\n",
         ),
         (
-            "  pull_request:\n    branches: [main, develop]\n",
-            "  pull_request:\n    branches: [main, develop]\n"
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n",
+            "  pull_request:\n    branches: [main, develop, \"feat/identity-group-*\"]\n"
             "    branches-ignore: ['release/**']\n",
         ),
         (

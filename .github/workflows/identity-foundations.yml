@@ -2,7 +2,7 @@ name: Identity Foundation Verification
 
 on:
   pull_request:
-    branches: [main]
+    branches: [main, "feat/identity-group-*"]
     paths:
       - 'backend/**'
       - 'tests/backend/**'
@@ -79,7 +79,7 @@ jobs:
         env:
           TEST_DATABASE_URL: postgresql+asyncpg://riskhub:riskhub_test@localhost:5432/riskhub_test
         run: |
-          pytest ../tests/backend/pytest/test_identity_foundations.py ../tests/backend/pytest/test_identity_foundations_postgres.py ../tests/backend/pytest/test_sso_exchange.py ../tests/backend/pytest/test_auth_refresh.py ../tests/backend/pytest/test_auth_session_lifecycle.py ../tests/backend/pytest/test_admin_sessions.py ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_directory_import.py ../tests/backend/pytest/test_ad_deprovision_service.py ../tests/backend/pytest/test_admin_directory_sync.py -q --no-cov
+          pytest ../tests/backend/pytest/test_identity_authority_loading.py ../tests/backend/pytest/test_users.py ../tests/backend/pytest/test_identity_foundations.py ../tests/backend/pytest/test_identity_foundations_postgres.py ../tests/backend/pytest/test_sso_exchange.py ../tests/backend/pytest/test_auth_refresh.py ../tests/backend/pytest/test_auth_session_lifecycle.py ../tests/backend/pytest/test_admin_sessions.py ../tests/backend/pytest/test_access_management.py ../tests/backend/pytest/test_directory_import.py ../tests/backend/pytest/test_ad_deprovision_service.py ../tests/backend/pytest/test_admin_directory_sync.py -q --no-cov
       - name: Validate production and authorization documentation
         run: |
           python3 scripts/security/validate_production_contract_docs.py

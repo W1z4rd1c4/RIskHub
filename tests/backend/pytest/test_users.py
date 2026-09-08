@@ -586,16 +586,16 @@ async def test_update_user_rejects_self_privileged_role_demotion(
 ):
     response = await auth_client.patch(f"/api/v1/users/{test_user.id}", json={"role_id": test_user_employee.role_id})
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Cannot demote yourself from admin/CRO role"
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "LAST_PLATFORM_ADMIN"
 
 
 @pytest.mark.asyncio
 async def test_update_user_rejects_deactivating_last_privileged_user(auth_client: AsyncClient, test_user: User):
     response = await auth_client.patch(f"/api/v1/users/{test_user.id}", json={"is_active": False})
 
-    assert response.status_code == 400
-    assert response.json()["detail"] == "Cannot deactivate your own privileged access"
+    assert response.status_code == 409
+    assert response.json()["detail"]["code"] == "LAST_PLATFORM_ADMIN"
 
 
 @pytest.mark.asyncio

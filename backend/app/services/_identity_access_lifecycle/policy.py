@@ -102,7 +102,7 @@ async def effective_platform_admin_ids(db: AsyncSession, *, settings: Settings |
             await db.execute(
                 select(User)
                 .join(Role)
-                .options(*user_selectinload_options(include_permissions=True))
+                .options(*user_selectinload_options(include_permissions=True, include_manager=False))
                 .where(
                     Role.name == "admin",
                     Role.is_active.is_(True),
