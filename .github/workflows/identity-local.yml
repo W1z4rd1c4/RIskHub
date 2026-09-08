@@ -24,9 +24,11 @@ jobs:
       - uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405 # v6.2.0
         with:
           python-version: '3.13'
-      - name: Capture new maintained security-library wheels
+      - name: Capture pinned maintained security libraries and offline policy data
         run: |
           python -m pip download --only-binary=:all: --no-deps argon2-cffi==25.1.0 argon2-cffi-bindings==25.1.0 pyotp==2.9.0 --dest "$RUNNER_TEMP/native-wheels"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/danielmiessler/SecLists/3153474db3a882d4410aa4f4f0ac300cca0fee0e/Passwords/Common-Credentials/10k-most-common.txt --output "$RUNNER_TEMP/native-wheels/common-passwords.txt"
+          curl --fail --silent --show-error --location --proto '=https' --tlsv1.2 https://raw.githubusercontent.com/danielmiessler/SecLists/3153474db3a882d4410aa4f4f0ac300cca0fee0e/LICENSE --output "$RUNNER_TEMP/native-wheels/SecLists-LICENSE"
           sha256sum "$RUNNER_TEMP/native-wheels/"* > "$RUNNER_TEMP/native-wheels/SHA256SUMS"
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
