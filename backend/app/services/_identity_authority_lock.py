@@ -44,7 +44,7 @@ async def lock_identity_transition(
         (
             await db.execute(
                 select(User)
-                .options(*user_selectinload_options(include_permissions=True))
+                .options(*user_selectinload_options(include_permissions=True, include_manager=False))
                 .where(or_(User.id.in_(ids), User.manager_id == user_id))
                 .order_by(User.id)
                 .with_for_update(of=User)

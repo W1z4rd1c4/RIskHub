@@ -7,7 +7,7 @@ on:
   push:
     branches: [main, develop]
   pull_request:
-    branches: [main, develop]
+    branches: [main, develop, "feat/identity-group-*"]
   workflow_dispatch:
 
 jobs:
@@ -345,6 +345,9 @@ jobs:
           TRUSTED_PROXIES: '["127.0.0.1","::1"]'
         run: |
           alembic upgrade head
+          # The disposable database is fresh; use the real operator binding path.
+          python -m scripts.identity_installation initialize --maintenance-confirmed --source "ci-production-smoke"
+          python -m scripts.identity_installation verify
           uvicorn app.main:app --host 0.0.0.0 --port 8000 > ../prod-smoke-backend.log 2>&1 &
 
           for attempt in $(seq 1 30); do
