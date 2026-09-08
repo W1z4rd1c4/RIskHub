@@ -17,7 +17,7 @@ jobs:
         with:
           ref: f521ca47c885cc2971c023d2084b914fb5a37a6a
           persist-credentials: false
-      - name: Reconstruct only the fixed reviewed candidate tree
+      - name: Reconstruct only the fixed reviewed non-workflow candidate tree
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
@@ -34,6 +34,7 @@ jobs:
           API = 'https://api.github.com/repos/W1z4rd1c4/RiskHub'
           BASE_TREE = '77a368a26f7c1be6d8589681c1d1e24275d90c6f'
           EXPECTED_TREE = 'fc1b583ed15554958f7b446b178388c1f029b21e'
+          EXPECTED_NON_WORKFLOW_TREE = 'e8b3683ffc906e704215dec0b8b848d360c8131c'
           CHUNKS = [
               '9a0409de181c3c95b7b0d1fe9df0b7db0b53bbc2',
               '09cdbacec106f6c95242e03d5d185cfcfc0e1e99',
@@ -95,6 +96,10 @@ jobs:
           changed = [p.decode() for p in git('diff', '--cached', '--no-renames', '--name-only', '-z').split(b'\0') if p]
           tree = []
           for path in changed:
+              # GitHub Actions does not publish workflow files. The connector
+              # adds the separately reviewed verification workflow afterward.
+              if path.startswith('.github/'):
+                  continue
               if path not in entries:
                   tree.append({'path': path, 'mode': '100644', 'type': 'blob', 'sha': None})
                   continue
@@ -102,10 +107,10 @@ jobs:
               content = git('cat-file', 'blob', sha).decode('utf-8')
               tree.append({'path': path, 'mode': mode, 'type': 'blob', 'content': content})
           result = api('/git/trees', {'base_tree': BASE_TREE, 'tree': tree})
-          assert result['sha'] == EXPECTED_TREE, result['sha']
-          print('VERIFIED_CANDIDATE_TREE=' + result['sha'])
-          print('CHANGED_FILES=' + str(len(changed)))
+          assert result['sha'] == EXPECTED_NON_WORKFLOW_TREE, result['sha']
+          print('VERIFIED_NON_WORKFLOW_TREE=' + result['sha'])
+          print('CHANGED_FILES=' + str(len(tree)))
           print('No application code executed; no commit or ref update performed.')
           with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as summary:
-              summary.write('Verified candidate tree: `' + result['sha'] + '`\n\nNo application execution or branch update.\n')
+              summary.write('Verified non-workflow tree: `' + result['sha'] + '`\n\nNo application execution, workflow publication or branch update.\n')
           PY
